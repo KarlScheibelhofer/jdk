@@ -269,7 +269,18 @@ public final class SunEntries {
                 "sun.security.provider.JavaKeyStore$CaseExactJKS", attrs);
         add(p, "KeyStore", "DKS", "sun.security.provider.DomainKeyStore$DKS",
                 attrs);
+        add(p, "KeyStore", "PEM",
+               "sun.security.pem.PemFileKeystore");
+        add(p, "KeyStore", "PEM-DIRECTORY",
+               "sun.security.pem.PemDirectoryKeystore");
 
+        // TODO: remove after refactoring PEM keystore
+        add(p, "AlgorithmParameters", "null",
+               "sun.security.pem.NullAlgorithmParameters");
+        add(p, "AlgorithmParameters", "PBES2",
+               "sun.security.pem.PBES2AlgorithmParameters");
+        add(p, "Cipher", "null",
+               "sun.security.pem.NullCipher");
 
         /*
          * CertStores
