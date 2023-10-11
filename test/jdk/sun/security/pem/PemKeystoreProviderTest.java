@@ -8,6 +8,7 @@
  * @author  Karl Scheibelhofer
  */
 
+import java.security.KeyStore;
 import java.security.Provider;
 import java.security.Security;
 
@@ -16,6 +17,9 @@ public class PemKeystoreProviderTest {
     public static void main(String[] args) throws Exception {
         checkProperty("SUN", "KeyStore.PEM");
         checkProperty("SUN", "KeyStore.PEM-DIRECTORY");
+
+        checkGetInstance("SUN", "PEM");
+        checkGetInstance("SUN", "PEM-DIRECTORY");
     }
 
     private static void checkProperty(String providerName, String propertyName) throws Exception {
@@ -31,4 +35,15 @@ public class PemKeystoreProviderTest {
 
         System.out.println("OK: provider=" + providerName + ", property=" + propertyName + ", value=" + propertyValue);
     }
+
+    private static void checkGetInstance(String providerName, String keystoreType) throws Exception {
+        KeyStore keystoreInstance = KeyStore.getInstance(keystoreType, providerName);
+
+        if (keystoreInstance == null) {
+            throw new Exception("getting keystore instance of type " + keystoreType + " of provider " + providerName + " returned null");
+        }
+
+        System.out.println("OK: keystore instance provider=" + providerName + ", type=" + keystoreType);
+    }
+
 }
