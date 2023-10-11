@@ -14,12 +14,14 @@ import java.security.Security;
 
 public class PemKeystoreProviderTest {
 
-    public static void main(String[] args) throws Exception {
-        checkProperty("SUN", "KeyStore.PEM");
-        checkProperty("SUN", "KeyStore.PEM-DIRECTORY");
+    private static final String PROVIDER = "SUN";
 
-        checkGetInstance("SUN", "PEM");
-        checkGetInstance("SUN", "PEM-DIRECTORY");
+    public static void main(String[] args) throws Exception {
+        checkProperty(PROVIDER, "KeyStore.PEM");
+        checkProperty(PROVIDER, "KeyStore.PEM-DIRECTORY");
+
+        checkGetInstance(PROVIDER, "PEM");
+        checkGetInstance(PROVIDER, "PEM-DIRECTORY");
     }
 
     private static void checkProperty(String providerName, String propertyName) throws Exception {
