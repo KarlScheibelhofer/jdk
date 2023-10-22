@@ -39,49 +39,22 @@ public class PemFileKeystoreTest {
     private static final String PROVIDER = "SUN";
 
     public static void main(String[] args) throws Exception {
-        checkLoadPemTruststore();
+        testLoadPemTruststore();
+        System.out.println("OK: test loading truststore file");
+
+        testLoadPlainPrivateKeyRSA();
+        System.out.println("OK: test loading plain RSA private-key");
     }
 
-    private static void assertNotNull(Object value, String message) throws Exception {
-        if (value == null) {
-            throw new Exception(message + " - expected non-null value, value: " + value);
-        }
-    }
-
-    private static void assertTrue(boolean value, String message) throws Exception {
-        if (value != true) {
-            throw new Exception(message + " - expected value: true, value: " + value);
-        }
-    }
-
-    private static void assertEquals(int expectedValue, int value, String message) throws Exception {
-        if (value != expectedValue) {
-            throw new Exception(message + " - expected value: " + expectedValue + ", value: " + value);
-        }
-    }
-
-    private static void assertEquals(String expectedValue, String value, String message) throws Exception {
-        if (value == expectedValue) {
-            return;
-        }
-        if (value == null || expectedValue == null || !expectedValue.equals(value)) {
-            throw new Exception(message + " - expected value: " + expectedValue + ", value: " + value);
-        }
-    }
-
-    private static void fail(String message) throws Exception {
-        throw new Exception(message);
-    }
-
-    private static void checkLoadPemTruststore() throws Exception {
+    private static void testLoadPemTruststore() throws Exception {
         final String storeName = "truststore.pem";
 
         KeyStore ks = KeyStore.getInstance("pem", PROVIDER);
 
-        assertNotNull(ks, "keystore is null");
+        Assertions.assertNotNull(ks, "keystore is null");
 
         ks.load(PemKeystoreTestUtils.getResource(storeName), null);
-        assertEquals(4, ks.size(), "keystore.size()");
+        Assertions.assertEquals(4, ks.size());
 
         Set<Certificate> certSet = new HashSet<>();
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
@@ -95,30 +68,27 @@ public class PemFileKeystoreTest {
             String alias = aliasEnum.nextElement();
             if (ks.isCertificateEntry(alias)) {
                 Certificate c = ks.getCertificate(alias);
-                assertNotNull(c, "certificate is null");
-                assertTrue(certSet.contains(c), "expected certificate not in set");
+                Assertions.assertNotNull(c);
+                Assertions.assertTrue(certSet.contains(c));
                 if (c instanceof X509Certificate) {
                     X509Certificate xc = (X509Certificate) c;
                     String subjectDN = xc.getSubjectX500Principal().getName();
-                    assertEquals(subjectDN, alias, "alias mismatch");
+                    Assertions.assertEquals(subjectDN, alias);
                 } else {
-                    fail("invalid cert type");
+                    Assertions.fail("invalid cert type");
                 }
             } else {
-                fail("found unexpected non-certificate entry with alias: " + alias);
+                Assertions.fail("found unexpected non-certificate entry with alias: " + alias);
             }
         }
-
-        System.out.println("OK: check loading truststore: " + storeName);
     }
 
- /*
-    public void checkPrivateKey(String keyStoreFile, String keyStoreType, char[] privateKeyPassword,
-            Class<? extends PrivateKey> expectedPrivateKeyClass) throws Exception {
-        KeyStore ks = KeyStore.getInstance(keyStoreType, JctProvider.getInstance());
+    static void checkPrivateKey(String keyStoreFile, String keyStoreType, char[] privateKeyPassword,
+                                Class<? extends PrivateKey> expectedPrivateKeyClass) throws Exception {
+        KeyStore ks = KeyStore.getInstance("pem", PROVIDER);
         Assertions.assertNotNull(ks);
 
-        ks.load(PemKeystoreTest.getResource(keyStoreFile), null);
+        ks.load(PemKeystoreTestUtils.getResource(keyStoreFile), null);
         Assertions.assertEquals(1, ks.size());
 
         Enumeration<String> aliasEnum = ks.aliases();
@@ -135,11 +105,11 @@ public class PemFileKeystoreTest {
         }
     }
 
-    @Test
-    public void testLoadPlainPrivateKeyRSA() throws Exception {
+    private static void testLoadPlainPrivateKeyRSA() throws Exception {
         checkPrivateKey("rsa-2048.pem", "pem", null, RSAPrivateKey.class);
     }
 
+    /*
     @Test
     public void testLoadAes128EncryptedPrivateKeyRSA() throws Exception {
         checkPrivateKey("rsa-2048-aes128.pem", "pem", "password".toCharArray(), RSAPrivateKey.class);

@@ -28,12 +28,8 @@ public class PemKeystoreProviderTest {
         Provider provider = Security.getProvider(providerName);
         String propertyValue = provider.getProperty(propertyName);
 
-        if (propertyValue == null) {
-            throw new Exception("value of property " + propertyName + " of provider " + providerName + " is null");
-        }
-        if (propertyValue.isEmpty()) {
-            throw new Exception("value of property " + propertyName + " of provider " + providerName + " is empty");
-        }
+        Assertions.assertNotNull(propertyValue, "value of property " + propertyName + " of provider " + providerName + " is null");
+        Assertions.assertTrue(!propertyValue.isEmpty(), "value of property " + propertyName + " of provider " + providerName + " is empty");
 
         System.out.println("OK: provider=" + providerName + ", property=" + propertyName + ", value=" + propertyValue);
     }
@@ -41,9 +37,7 @@ public class PemKeystoreProviderTest {
     private static void checkGetInstance(String providerName, String keystoreType) throws Exception {
         KeyStore keystoreInstance = KeyStore.getInstance(keystoreType, providerName);
 
-        if (keystoreInstance == null) {
-            throw new Exception("getting keystore instance of type " + keystoreType + " of provider " + providerName + " returned null");
-        }
+        Assertions.assertNotNull(keystoreInstance, "getting keystore instance of type " + keystoreType + " of provider " + providerName + " returned null");
 
         System.out.println("OK: keystore instance provider=" + providerName + ", type=" + keystoreType);
     }

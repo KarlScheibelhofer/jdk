@@ -25,6 +25,10 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.PBEParameterSpec;
 
+import sun.security.x509.AlgorithmId;
+import sun.security.util.DerValue;
+import sun.security.util.DerInputStream;
+
 /**
  * Internal support class for reading and writing PEM format keys and certificates.
  */
@@ -75,7 +79,7 @@ abstract class Pem {
         void initFromEncoding(byte[] encoding) {
             super.initFromEncoding(encoding);
             try {
-                PKCS8EncodedKeySpec spec = createPkcs8KeySpec(encoding);
+                PKCS8EncodedKeySpec spec = pkcs8EncodingToSpec(encoding);
                 KeyFactory kf = KeyFactory.getInstance(spec.getAlgorithm());
                 this.privateKey = kf.generatePrivate(spec);
             } catch (Exception e) {
@@ -83,15 +87,43 @@ abstract class Pem {
             }
         }
 
-        private static PKCS8EncodedKeySpec createPkcs8KeySpec(byte[] encoding) throws NoSuchProviderException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeySpecException, InvalidKeyException {
-            // we must tweak around a litte to access the PKCS#8 decoding fature only available in EncryptedPrivateKeyInfo
-            // use pkcs8EncodingToSpec from javax.crypto.EncryptedPrivateKeyInfo instead
-            AlgorithmParameters nullAlgorithmParam = AlgorithmParameters.getInstance("0.1", "SUN");
-            EncryptedPrivateKeyInfo epki = new EncryptedPrivateKeyInfo(nullAlgorithmParam, encoding);
-            Cipher nullCipher = Cipher.getInstance("null", "SUN");
-            nullCipher.init(Cipher.DECRYPT_MODE, new NullPrivateKey());
-            return epki.getKeySpec(nullCipher);
+        // taken from javax.crypto.EncryptedPrivateKeyInfo, TODO: consider refactoring there to make it accessible
+        private static void checkTag(DerValue val, byte tag, String valName) throws IOException {
+            if (val.getTag() != tag) {
+                throw new IOException("invalid key encoding - wrong tag for " + valName);
+            }
         }
+
+        // taken from javax.crypto.EncryptedPrivateKeyInfo, TODO: consider refactoring there to make it accessible
+        @SuppressWarnings("fallthrough")
+        private static PKCS8EncodedKeySpec pkcs8EncodingToSpec(byte[] encodedKey) throws IOException {
+            DerInputStream in = new DerInputStream(encodedKey);
+            DerValue[] values = in.getSequence(3);
+
+            switch (values.length) {
+            case 4:
+                checkTag(values[3], DerValue.TAG_CONTEXT, "attributes");
+                /* fall through */
+            case 3:
+                checkTag(values[0], DerValue.tag_Integer, "version");
+                String keyAlg = AlgorithmId.parse(values[1]).getName();
+                checkTag(values[2], DerValue.tag_OctetString, "privateKey");
+                return new PKCS8EncodedKeySpec(encodedKey, keyAlg);
+            default:
+                throw new IOException("invalid key encoding");
+            }
+        }
+/*
+private static PKCS8EncodedKeySpec createPkcs8KeySpecTweak(byte[] encoding) throws NoSuchProviderException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeySpecException, InvalidKeyException {
+    // we must tweak around a litte to access the PKCS#8 decoding feature only available in EncryptedPrivateKeyInfo
+    // use pkcs8EncodingToSpec from javax.crypto.EncryptedPrivateKeyInfo instead
+    AlgorithmParameters nullAlgorithmParam = AlgorithmParameters.getInstance("0.1", "SUN");
+    EncryptedPrivateKeyInfo epki = new EncryptedPrivateKeyInfo(nullAlgorithmParam, encoding);
+    Cipher nullCipher = Cipher.getInstance("null", "SUN");
+    nullCipher.init(Cipher.DECRYPT_MODE, new NullPrivateKey());
+    return epki.getKeySpec(nullCipher);
+}
+*/
 
     }
 

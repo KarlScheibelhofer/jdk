@@ -10,9 +10,10 @@ import java.security.cert.X509Certificate;
 public class PemKeystoreTestUtils {
 
     private static final String DIR = System.getProperty("test.src", ".");
+    private static final String FILE_SEPARATOR = System.getProperty("file.separator");
 
     static InputStream getResource(String name) throws IOException {
-        return new FileInputStream(new File(DIR, name));
+        return new FileInputStream(new File(DIR + FILE_SEPARATOR + "files", name));
     }
 
     static X509Certificate getResourceCertificate(String name) throws IOException, GeneralSecurityException {
