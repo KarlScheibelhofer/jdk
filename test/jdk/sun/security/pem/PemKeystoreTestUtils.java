@@ -3,8 +3,15 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.Signature;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 
 
 public class PemKeystoreTestUtils {
@@ -19,6 +26,37 @@ public class PemKeystoreTestUtils {
     static X509Certificate getResourceCertificate(String name) throws IOException, GeneralSecurityException {
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
         return (X509Certificate) cf.generateCertificate(getResource(name));
+    }
+
+    static boolean matching(PublicKey publicKey, PrivateKey privateKey) {
+        if ((publicKey instanceof RSAPublicKey) && (privateKey instanceof RSAPrivateKey)) {
+            return matching((RSAPublicKey) publicKey, (RSAPrivateKey) privateKey);
+        }
+        if ((publicKey instanceof ECPublicKey) && (privateKey instanceof ECPrivateKey)) {
+            return matching((ECPublicKey) publicKey, (ECPrivateKey) privateKey);
+        }
+        return false;
+    }
+
+    static boolean matching(RSAPublicKey publicKey, RSAPrivateKey privateKey) {
+        return publicKey.getModulus().equals(privateKey.getModulus());
+    }
+
+    static boolean matching(ECPublicKey publicKey, ECPrivateKey privateKey) {
+        try {
+            // I found no better way using only Java standard API without additional
+            // dependency
+            byte[] data = new byte[32];
+            Signature s = Signature.getInstance("SHA256withECDSA");
+            s.initSign(privateKey);
+            s.update(data);
+            byte[] sig = s.sign();
+            s.initVerify(publicKey);
+            s.update(data);
+            return s.verify(sig);
+        } catch (Exception e) {
+            return false;
+        }
     }
 /*
 

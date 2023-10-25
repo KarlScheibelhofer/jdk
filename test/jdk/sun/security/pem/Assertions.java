@@ -1,3 +1,5 @@
+import java.util.List;
+
 public class Assertions {
 
     private static String msg(String s) {
@@ -42,6 +44,19 @@ public class Assertions {
     }
 
     static void assertEquals(String expectedValue, String value, String message) throws Exception {
+        if (value == expectedValue) {
+            return;
+        }
+        if (value == null || expectedValue == null || !expectedValue.equals(value)) {
+            throw new Exception(msg(message) + "expected value: " + expectedValue + ", value: " + value);
+        }
+    }
+
+    static void assertEquals(List<?> expectedValue, List<?> value) throws Exception {
+        assertEquals(expectedValue, value, null);
+    }
+
+    static void assertEquals(List<?> expectedValue, List<?> value, String message) throws Exception {
         if (value == expectedValue) {
             return;
         }

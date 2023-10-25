@@ -1,6 +1,7 @@
 package sun.security.pem;
 
 import java.security.Key;
+import java.security.KeyFactory;
 import java.security.KeyStoreException;
 import java.security.KeyStoreSpi;
 import java.security.NoSuchAlgorithmException;
@@ -14,6 +15,10 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.ECParameterSpec;
+import java.security.spec.ECPoint;
+import java.security.spec.EllipticCurve;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -209,6 +214,17 @@ public abstract class PemKeystore extends KeyStoreSpi {
         try {
             // I found no better way using only Java standard API without additional
             // dependency
+/* within OpenJDK try this
+            ECPrivateKeyImpl sunEcPrivKey = KeyFactory.getInstance("EC", "SUN").generatePrivate(new PKCS8EncodedKeySpec(privateKey.getEncoded()));
+            ECPublicKeyImpl sunEcPubKey = sunEcPrivKey.calculatePublicKey();
+
+            if (sunEcPubKey.getParams().equals(publicKey.getParams()) && sunEcPubKey.getW().equals(publicKey.getW())) {
+                return true;
+            }
+            return false;
+
+*/
+
             byte[] data = new byte[32];
             Signature s = Signature.getInstance("SHA256withECDSA");
             s.initSign(privateKey);

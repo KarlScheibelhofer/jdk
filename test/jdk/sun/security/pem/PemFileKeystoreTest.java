@@ -44,6 +44,27 @@ public class PemFileKeystoreTest {
 
         testLoadPlainPrivateKeyRSA();
         System.out.println("OK: test loading plain RSA private-key");
+
+        testLoadAes128EncryptedPrivateKeyRSA();
+        System.out.println("OK: test loading AES-128 encrypted RSA private-key");
+
+        testLoadAes256EncryptedPrivateKeyRSA();
+        System.out.println("OK: test loading AES-256 encrypted RSA private-key");
+
+        testLoadPlainPrivateKeyEC();
+        System.out.println("OK: test loading plain EC private-key");
+
+        testLoadAes128PrivateKeyEC();
+        System.out.println("OK: test loading AES-128 encrypted EC private-key");
+
+        testLoadAes256PrivateKeyEC();
+        System.out.println("OK: test loading AES-256 encrypted EC private-key");
+
+        testLoadRsaKeystoreWithChain();
+        System.out.println("OK: test loading keystore with plain RSA private-key and certificate chain");
+
+        testLoadEcKeystoreWithChain();
+        System.out.println("OK: test loading keystore with plain EC private-key and certificate chain");
     }
 
     private static void testLoadPemTruststore() throws Exception {
@@ -109,51 +130,43 @@ public class PemFileKeystoreTest {
         checkPrivateKey("rsa-2048.pem", "pem", null, RSAPrivateKey.class);
     }
 
-    /*
-    @Test
-    public void testLoadAes128EncryptedPrivateKeyRSA() throws Exception {
+    private static void testLoadAes128EncryptedPrivateKeyRSA() throws Exception {
         checkPrivateKey("rsa-2048-aes128.pem", "pem", "password".toCharArray(), RSAPrivateKey.class);
     }
 
-    @Test
-    public void testLoadAes256EncryptedPrivateKeyRSA() throws Exception {
+    private static void testLoadAes256EncryptedPrivateKeyRSA() throws Exception {
         checkPrivateKey("rsa-2048-aes256.pem", "pem", "password".toCharArray(), RSAPrivateKey.class);
     }
 
-    @Test
-    public void testLoadPlainPrivateKeyEC() throws Exception {
+    private static void testLoadPlainPrivateKeyEC() throws Exception {
         checkPrivateKey("ec-p256.pem", "pem", null, ECPrivateKey.class);
     }
 
-    @Test
-    public void testLoadAes128PrivateKeyEC() throws Exception {
+    private static void testLoadAes128PrivateKeyEC() throws Exception {
         checkPrivateKey("ec-p256-aes128.pem", "pem", "password".toCharArray(), ECPrivateKey.class);
     }
 
-    @Test
-    public void testLoadAes256PrivateKeyEC() throws Exception {
+    private static void testLoadAes256PrivateKeyEC() throws Exception {
         checkPrivateKey("ec-p256-aes256.pem", "pem", "password".toCharArray(), ECPrivateKey.class);
     }
 
-    @Test
-    public void testLoadRsaKeystoreWithChain() throws Exception {
+    private static void testLoadRsaKeystoreWithChain() throws Exception {
         checkKeystoreWithChain("RSA");
     }
 
-    @Test
-    public void testLoadEcKeystoreWithChain() throws Exception {
+    private static void testLoadEcKeystoreWithChain() throws Exception {
         checkKeystoreWithChain("EC");
     }
 
-    public void checkKeystoreWithChain(String algorithm) throws Exception {
+    private static void checkKeystoreWithChain(String algorithm) throws Exception {
         String keyStoreFile = "www.doesnotexist.org-" + algorithm + "-keystore.pem";
         String keyStoreType = "pem";
         char[] privateKeyPassword = "password".toCharArray();
 
-        KeyStore ks = KeyStore.getInstance(keyStoreType, JctProvider.getInstance());
+        KeyStore ks = KeyStore.getInstance(keyStoreType, PROVIDER);
         Assertions.assertNotNull(ks);
 
-        ks.load(PemKeystoreTest.getResource(keyStoreFile), null);
+        ks.load(PemKeystoreTestUtils.getResource(keyStoreFile), null);
         Assertions.assertEquals(1, ks.size());
 
         Enumeration<String> aliasEnum = ks.aliases();
@@ -172,13 +185,14 @@ public class PemFileKeystoreTest {
 
         List<Certificate> certChain = Arrays.asList(ks.getCertificateChain(alias));
         List<Certificate> expectedCertChain = List.of(
-            PemKeystoreTest.getResourceCertificate("www.doesnotexist.org-" + algorithm + ".crt"),
-            PemKeystoreTest.getResourceCertificate("Test-Intermediate-CA-" + algorithm + ".crt"),
-            PemKeystoreTest.getResourceCertificate("Test-Root-CA-" + algorithm + ".crt"));
-        Assertions.assertEquals(expectedCertChain, certChain);
+            PemKeystoreTestUtils.getResourceCertificate("www.doesnotexist.org-" + algorithm + ".crt"),
+            PemKeystoreTestUtils.getResourceCertificate("Test-Intermediate-CA-" + algorithm + ".crt"),
+            PemKeystoreTestUtils.getResourceCertificate("Test-Root-CA-" + algorithm + ".crt"));
+            Assertions.assertEquals(expectedCertChain, certChain);
 
-        Assertions.assertTrue(PemKeystore.matching(certChain.get(0).getPublicKey(), (PrivateKey) k));
+        Assertions.assertTrue(PemKeystoreTestUtils.matching(certChain.get(0).getPublicKey(), (PrivateKey) k));
     }
+/*
 
     @Test
     public void testLoadRsaKeystoreChainAlias() throws Exception {
