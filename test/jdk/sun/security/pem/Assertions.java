@@ -1,10 +1,17 @@
 import java.io.File;
+import java.lang.reflect.Executable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 public class Assertions {
+
+    @FunctionalInterface
+    public interface Executable {
+        void execute() throws Throwable;
+    }
 
     private static String msg(String s) {
         if (s == null) {
@@ -135,6 +142,25 @@ public class Assertions {
 
     static void fail(String message) throws Exception {
         throw new Exception(message);
+    }
+
+	static <T extends Throwable> T assertThrowsExactly(Class<T> expectedType, Executable executable) throws Exception {
+        return assertThrowsExactly(expectedType, executable, null);
+    }
+
+	static <T extends Throwable> T assertThrowsExactly(Class<T> expectedType, Executable executable, String message) throws Exception {
+		try {
+			executable.execute();
+		}
+		catch (Throwable actualException) {
+			if (expectedType.equals(actualException.getClass())) {
+				return (T) actualException;
+			}
+			else {
+				throw new Exception("expected exception of type " + expectedType.toString() + " but caught " + actualException + " message: " + message);
+			}
+		}
+        throw new Exception("expected exception of type " + expectedType.toString() + " but nothing was thrown");
     }
 
 }
