@@ -1,5 +1,5 @@
+/* TODO: Copyright goes here
 /*
- * TODO: Copyright goes here
  */
 
 /*
@@ -47,6 +47,21 @@ public class PemDirectoryKeystoreTest {
 
         loadTruststoreDirectoryFromFile();
         System.out.println("OK: test loading truststore directory from file");
+
+        loadKeystoreDirectoryWithPrivateKey();
+        System.out.println("OK: test loading keystore directory with private key");
+
+        loadKeystoreDirectoryWithEncPrivateKey();
+        System.out.println("OK: test loading keystore directory with encrypted private key");
+
+        loadKeystoreDecryptWrongPassword();
+        System.out.println("OK: test loading keystore directory with wrong password");
+
+        loadKeystoreSpecial();
+        System.out.println("OK: test loading keystore directory with invalid encoded key");
+
+        loadKeystoreUnknown();
+        System.out.println("OK: test loading keystore directory with an unknown PEM file type");
     }
 
     private static void loadTruststoreDirectory() throws Exception {
@@ -187,22 +202,21 @@ public class PemDirectoryKeystoreTest {
         Assertions.assertThrowsExactly(IOException.class, () -> ks.store(null, null));
     }
 
-/*
     private static void loadKeystoreDirectoryWithPrivateKey() throws Exception {
         KeyStore ks = KeyStore.getInstance("pem-directory", PROVIDER);
 
         try (InputStream is = new ByteArrayInputStream(
-                "src/test/resources/dir-keystore".getBytes(StandardCharsets.UTF_8))) {
+                PemKeystoreTestUtils.getResourceFile("dir-keystore").getAbsoluteFile().toString().getBytes(StandardCharsets.UTF_8))) {
             ks.load(is, null);
         }
         Assertions.assertEquals(1, ks.size());
         String alias = "www.doesnotexist.org-EC";
 
-        assertTrue(ks.isKeyEntry(alias));
-        assertNotNull(ks.getKey(alias, null));
+        Assertions.assertTrue(ks.isKeyEntry(alias));
+        Assertions.assertNotNull(ks.getKey(alias, null));
         Certificate[] certChain = ks.getCertificateChain(alias);
-        assertNotNull(certChain);
-        assertEquals(1, certChain.length);
+        Assertions.assertNotNull(certChain);
+        Assertions.assertEquals(1, certChain.length);
     }
 
     private static void loadKeystoreDirectoryWithEncPrivateKey() throws Exception {
@@ -210,80 +224,58 @@ public class PemDirectoryKeystoreTest {
 
         String password = "password";
         try (InputStream is = new ByteArrayInputStream(
-                "src/test/resources/dir-keystore-enc".getBytes(StandardCharsets.UTF_8))) {
+                PemKeystoreTestUtils.getResourceFile("dir-keystore-enc").getAbsoluteFile().toString().getBytes(StandardCharsets.UTF_8))) {
             ks.load(is, password.toCharArray());
         }
         Assertions.assertEquals(1, ks.size());
         String alias = "www.doesnotexist.org-EC-enc";
 
-        assertTrue(ks.isKeyEntry(alias));
-        assertNotNull(ks.getKey(alias, password.toCharArray()));
+        Assertions.assertTrue(ks.isKeyEntry(alias));
+        Assertions.assertNotNull(ks.getKey(alias, password.toCharArray()));
         Certificate[] certChain = ks.getCertificateChain(alias);
-        assertNotNull(certChain);
-        assertEquals(1, certChain.length);
-    }
-
-    private static void testInstance() throws Exception {
-        assertNotNull(KeyStore.getInstance("pem", PROVIDER));
-        assertNotNull(KeyStore.getInstance("PEM", PROVIDER));
-        assertNotNull(KeyStore.getInstance("Pem", PROVIDER));
-
-        assertNotNull(KeyStore.getInstance("pem-directory", PROVIDER));
-        assertNotNull(KeyStore.getInstance("PEM-DIRECTORY", PROVIDER));
-        assertNotNull(KeyStore.getInstance("Pem-Directory", PROVIDER));
-    }
-
-    private static void testInstallProvider() throws Exception {
-        assertThat(Security.addProvider(PROVIDER), is(greaterThanOrEqualTo(0)));
-
-        assertNotNull(KeyStore.getInstance("pem").getProvider().equals(PROVIDER));
-        assertNotNull(KeyStore.getInstance("PEM").getProvider().equals(PROVIDER));
-        assertNotNull(KeyStore.getInstance("Pem").getProvider().equals(PROVIDER));
-
-        assertNotNull(KeyStore.getInstance("pem-directory").getProvider().equals(PROVIDER));
-        assertNotNull(KeyStore.getInstance("PEM-DIRECTORY").getProvider().equals(PROVIDER));
-        assertNotNull(KeyStore.getInstance("Pem-Directory").getProvider().equals(PROVIDER));
-
-        Security.removeProvider(PROVIDER.getName());
-    }
-
-    private static void testBasename() throws Exception {
-        assertEquals("dummy", PemDirectoryKeystore.getFileBasename(Path.of("dummy")));
-        assertEquals("dummy", PemDirectoryKeystore.getFileBasename(Path.of("dummy.crt")));
+        Assertions.assertNotNull(certChain);
+        Assertions.assertEquals(1, certChain.length);
     }
 
     private static void loadKeystoreDecryptWrongPassword() throws Exception {
         KeyStore ks = KeyStore.getInstance("pem-directory", PROVIDER);
 
+        // note, the load method tries to decrypt private keys using the provided password,
+        // it will not fail, however, if the password is incorrect but delay the decryption until `getKey(alias, password)`
+        // is called with the correct password
         String password = "password";
         String wrongPassword = "secret";
-        try (InputStream is = new ByteArrayInputStream("src/test/resources/dir-keystore-enc".getBytes(StandardCharsets.UTF_8))) {
+        try (InputStream is = new ByteArrayInputStream(
+            PemKeystoreTestUtils.getResourceFile("dir-keystore-enc").getAbsoluteFile().toString().getBytes(StandardCharsets.UTF_8))) {
             ks.load(is, wrongPassword.toCharArray());
         }
         Assertions.assertEquals(2, ks.size());
         String alias = "www.doesnotexist.org-EC-enc";
 
-        assertTrue(ks.isKeyEntry(alias));
-        assertNotNull(ks.getKey(alias, password.toCharArray()));
+        Assertions.assertTrue(ks.isKeyEntry(alias));
+        Assertions.assertNotNull(ks.getKey(alias, password.toCharArray()));
         Certificate[] certChain = ks.getCertificateChain(alias);
-        assertNull(certChain);
-        assertNotNull(ks.getCertificate(alias));
+        Assertions.assertNull(certChain);
+        Assertions.assertNotNull(ks.getCertificate(alias));
     }
 
     private static void loadKeystoreSpecial() throws Exception {
         KeyStore ks = KeyStore.getInstance("pem-directory", PROVIDER);
 
-        assertThrowsExactly(IOException.class, () -> ks.load(new ByteArrayInputStream("src/test/resources/dir-keystore-special".getBytes(StandardCharsets.UTF_8)), null));
+        Assertions.assertThrowsExactly(IOException.class,
+            () -> ks.load(
+                    new ByteArrayInputStream(PemKeystoreTestUtils.getResourceFile("dir-keystore-special").getAbsoluteFile().toString().getBytes(StandardCharsets.UTF_8)),
+                    null));
     }
 
     private static void loadKeystoreUnknown() throws Exception {
         KeyStore ks = KeyStore.getInstance("pem-directory", PROVIDER);
 
-        try (InputStream is = new ByteArrayInputStream("src/test/resources/dir-keystore-unknown".getBytes(StandardCharsets.UTF_8))) {
+        try (InputStream is = new ByteArrayInputStream(
+            PemKeystoreTestUtils.getResourceFile("dir-keystore-unknown").getAbsoluteFile().toString().getBytes(StandardCharsets.UTF_8))) {
             ks.load(is, null);
         }
         Assertions.assertEquals(0, ks.size());
     }
- */
 
 }

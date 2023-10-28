@@ -21,7 +21,11 @@ public class PemKeystoreProviderTest {
         checkProperty(PROVIDER, "KeyStore.PEM-DIRECTORY");
 
         checkGetInstance(PROVIDER, "PEM");
+        checkGetInstance(PROVIDER, "pem");
+        checkGetInstance(PROVIDER, "Pem");
         checkGetInstance(PROVIDER, "PEM-DIRECTORY");
+        checkGetInstance(PROVIDER, "pem-directory");
+        checkGetInstance(PROVIDER, "Pem-Directory");
     }
 
     private static void checkProperty(String providerName, String propertyName) throws Exception {
