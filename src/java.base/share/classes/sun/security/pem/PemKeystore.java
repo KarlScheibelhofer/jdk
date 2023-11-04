@@ -214,7 +214,7 @@ public abstract class PemKeystore extends KeyStoreSpi {
         try {
             // I found no better way using only Java standard API without additional
             // dependency
-/* within OpenJDK try this
+/* TODO: within OpenJDK try this
             ECPrivateKeyImpl sunEcPrivKey = KeyFactory.getInstance("EC", "SUN").generatePrivate(new PKCS8EncodedKeySpec(privateKey.getEncoded()));
             ECPublicKeyImpl sunEcPubKey = sunEcPrivKey.calculatePublicKey();
 
