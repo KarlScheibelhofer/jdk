@@ -64,7 +64,7 @@ class PemWriter implements Closeable, Flushable {
         this.writer.flush();
     }
 
-    static void write(Path filePath, Pem.Entry entry){
+    static void write(Path filePath, Pem.Entry entry) {
         try (PemWriter pw = new PemWriter(new FileOutputStream(filePath.toFile()), false)) {
             pw.writeEntry(entry);
         } catch (IOException e) {

@@ -1,6 +1,7 @@
 package sun.security.pem;
 
 import java.io.FileInputStream;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -32,9 +33,18 @@ public class PemDirectoryKeystore extends PemKeystore {
             throw new IOException("the provided path name during the previous call of load() must denote a directory, if it exists, it was " + this.keystorePath);
         }
 
-        privateKeys.entrySet().stream().forEach(pke -> PemWriter.write(this.keystorePath.resolve(pke.getKey() + ".pem"), pke.getValue()));
-        certificateChains.entrySet().stream().forEach(cce -> PemWriter.write(this.keystorePath.resolve(cce.getKey() + ".crt"), cce.getValue()));
-        certificates.entrySet().stream().forEach(pke -> PemWriter.write(this.keystorePath.resolve(pke.getKey() + ".crt"), pke.getValue()));
+        try {
+            privateKeys.entrySet().stream().forEach(pke -> PemWriter.write(this.keystorePath.resolve(pke.getKey() + ".pem"), pke.getValue()));
+            certificateChains.entrySet().stream().forEach(cce -> PemWriter.write(this.keystorePath.resolve(cce.getKey() + ".crt"), cce.getValue()));
+            certificates.entrySet().stream().forEach(pke -> PemWriter.write(this.keystorePath.resolve(pke.getKey() + ".crt"), pke.getValue()));
+        } catch (PemKeystoreException ex) {
+            // if cause was IOException, throw original exception
+            Throwable cause = ex.getCause();
+            if (IOException.class.isInstance(cause)) {
+                throw ((IOException) cause);
+            }
+            throw ex;
+        }
 
         stream.close();
     }

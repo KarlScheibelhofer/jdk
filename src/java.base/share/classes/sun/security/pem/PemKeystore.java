@@ -1,5 +1,6 @@
 package sun.security.pem;
 
+import java.io.IOException;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyStoreException;
@@ -122,7 +123,11 @@ public abstract class PemKeystore extends KeyStoreSpi {
     @Override
     public void engineSetKeyEntry(String alias, byte[] encryptedKey, Certificate[] chain) throws KeyStoreException {
         Pem.EncryptedPrivateKeyEntry encryptedKeyEntry = new Pem.EncryptedPrivateKeyEntry(alias);
-        encryptedKeyEntry.initFromEncoding(encryptedKey);
+        try {
+            encryptedKeyEntry.initFromEncoding(encryptedKey);
+        } catch (IOException e) {
+            throw new KeyStoreException("failed decoding encrypted private key", e);
+        }
         privateKeys.put(alias, encryptedKeyEntry);
         List<Pem.CertificateEntry> certificateChain = Stream.of(chain)
             .filter(X509Certificate.class::isInstance)

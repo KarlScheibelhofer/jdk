@@ -157,7 +157,7 @@ public class Assertions {
 				return (T) actualException;
 			}
 			else {
-				throw new Exception("expected exception of type " + expectedType.toString() + " but caught " + actualException + " message: " + message);
+				throw new Exception("expected exception of type " + expectedType.toString() + " but caught " + actualException + " message: " + message, actualException);
 			}
 		}
         throw new Exception("expected exception of type " + expectedType.toString() + " but nothing was thrown");

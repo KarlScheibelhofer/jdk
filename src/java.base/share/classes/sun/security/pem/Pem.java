@@ -7,6 +7,7 @@ import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyFactory;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
@@ -52,7 +53,7 @@ abstract class Pem {
             this.alias = alias;
         }
 
-        void initFromEncoding(byte[] encoding) {
+        void initFromEncoding(byte[] encoding) throws IOException {
             this.encoding = encoding;
         }
 
@@ -76,14 +77,14 @@ abstract class Pem {
         }
 
         @Override
-        void initFromEncoding(byte[] encoding) {
+        void initFromEncoding(byte[] encoding) throws IOException {
             super.initFromEncoding(encoding);
             try {
                 PKCS8EncodedKeySpec spec = pkcs8EncodingToSpec(encoding);
                 KeyFactory kf = KeyFactory.getInstance(spec.getAlgorithm());
                 this.privateKey = kf.generatePrivate(spec);
             } catch (Exception e) {
-                throw new PemKeystoreException("failed decoding private key entry", e);
+                throw new IOException("failed decoding private key entry", e);
             }
         }
 
@@ -141,12 +142,12 @@ private static PKCS8EncodedKeySpec createPkcs8KeySpecTweak(byte[] encoding) thro
         }
 
         @Override
-        void initFromEncoding(byte[] encoding) {
+        void initFromEncoding(byte[] encoding) throws IOException {
             this.encoding = encoding;
             try {
                 this.encryptedPrivateKey = new EncryptedPrivateKeyInfo(encoding);
             } catch (IOException e) {
-                throw new PemKeystoreException("failed decoding encrypted private key", e);
+                throw new IOException("failed decoding encrypted private key", e);
             }
         }
 
@@ -225,13 +226,13 @@ private static PKCS8EncodedKeySpec createPkcs8KeySpecTweak(byte[] encoding) thro
         }
 
         @Override
-        void initFromEncoding(byte[] encoding) {
+        void initFromEncoding(byte[] encoding) throws IOException {
             super.initFromEncoding(encoding);
             try {
                 CertificateFactory cf = CertificateFactory.getInstance("X.509");
                 this.certificate = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(encoding));
             } catch (Exception e) {
-                throw new PemKeystoreException("failed decoding certificate", e);
+                throw new IOException("failed decoding certificate", e);
             }
         }
 
