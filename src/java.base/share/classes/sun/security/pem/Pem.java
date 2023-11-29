@@ -114,17 +114,6 @@ abstract class Pem {
                 throw new IOException("invalid key encoding");
             }
         }
-/*
-private static PKCS8EncodedKeySpec createPkcs8KeySpecTweak(byte[] encoding) throws NoSuchProviderException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeySpecException, InvalidKeyException {
-    // we must tweak around a litte to access the PKCS#8 decoding feature only available in EncryptedPrivateKeyInfo
-    // use pkcs8EncodingToSpec from javax.crypto.EncryptedPrivateKeyInfo instead
-    AlgorithmParameters nullAlgorithmParam = AlgorithmParameters.getInstance("0.1", "SUN");
-    EncryptedPrivateKeyInfo epki = new EncryptedPrivateKeyInfo(nullAlgorithmParam, encoding);
-    Cipher nullCipher = Cipher.getInstance("null", "SUN");
-    nullCipher.init(Cipher.DECRYPT_MODE, new NullPrivateKey());
-    return epki.getKeySpec(nullCipher);
-}
-*/
 
     }
 

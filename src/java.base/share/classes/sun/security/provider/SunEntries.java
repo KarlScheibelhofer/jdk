@@ -274,13 +274,9 @@ public final class SunEntries {
         add(p, "KeyStore", "PEM-DIRECTORY",
                "sun.security.pem.PemDirectoryKeystore");
 
-        // TODO: remove after refactoring PEM keystore
-        add(p, "AlgorithmParameters", "null",
-               "sun.security.pem.NullAlgorithmParameters");
+        // TODO: maybe we find a way to not need PBES2AlgorithmParameters
         add(p, "AlgorithmParameters", "PBES2",
                "sun.security.pem.PBES2AlgorithmParameters");
-        add(p, "Cipher", "null",
-               "sun.security.pem.NullCipher");
 
         /*
          * CertStores
