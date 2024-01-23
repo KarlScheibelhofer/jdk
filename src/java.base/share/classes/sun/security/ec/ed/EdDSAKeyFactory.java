@@ -25,11 +25,8 @@
 
 package sun.security.ec.ed;
 
-import sun.security.ec.ECPrivateKeyImpl;
-import sun.security.ec.ECPublicKeyImpl;
 import sun.security.pkcs.PKCS8Key;
 
-import java.io.IOException;
 import java.security.*;
 import java.security.interfaces.*;
 import java.security.spec.*;

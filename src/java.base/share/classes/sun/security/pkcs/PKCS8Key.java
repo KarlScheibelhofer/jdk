@@ -190,11 +190,6 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
                 return;
             }
 
- /*           DerValue next = val.data.getDerValue();
-            if (next.isContextSpecific((byte)0)) {
-                attributes = next.toByteArray();
-            }
-  */
             // OPTIONAL Context tag 0 for Attributes for PKCS8 v1 & v2
             var result =
                 val.data.getOptionalImplicitContextSpecific(0,
@@ -412,11 +407,9 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
         out.putOctetString(privKeyMaterial);
 
         if (attributes != null) {
-//            DerValue[] d = new DerValue[] {DerValue.wrap(attributes)};
             out.writeImplicit(
                 DerValue.createTag(DerValue.TAG_CONTEXT, false, (byte) 0),
                 new DerOutputStream().putOctetString(attributes));
-                //new DerOutputStream().putSequence(d));
 
         }
 
