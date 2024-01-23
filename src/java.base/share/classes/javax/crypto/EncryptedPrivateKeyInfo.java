@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +32,16 @@ import sun.security.x509.AlgorithmId;
 
 import javax.crypto.spec.PBEKeySpec;
 import java.io.IOException;
+import sun.security.pkcs.PKCS8Key;
+import sun.security.util.*;
+import sun.security.x509.AlgorithmId;
+
+import javax.crypto.spec.PBEKeySpec;
+import java.io.IOException;
 import java.security.*;
 import java.security.spec.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class implements the {@code EncryptedPrivateKeyInfo} type
@@ -52,10 +61,36 @@ import java.security.spec.*;
  * @author Valerie Peng
  *
  * @see PKCS8EncodedKeySpec
+ * @see PKCS8EncodedKeySpec
  *
  * @since 1.4
+ *
+ *
+ *
+ * <pre>
+ * EncryptedPrivateKeyInfo ::= SEQUENCE {
+ *       encryptionAlgorithm  EncryptionAlgorithmIdentifier,
+ *       encryptedData        EncryptedData
+ * }
+ *
+ *       encryption alg's AlgID...
+ *
+ * PBES2Algorithms ALGORITHM-IDENTIFIER ::= {
+ *       PBES2-params IDENTIFIED BY id-PBES2},
+ *       ...
+ * }
+ *
+ * id-PBES2 OBJECT IDENTIFIER ::= {pkcs-5 13}
+ *
+ * PBES2-params ::= SEQUENCE {
+ *       keyDerivationFunc AlgorithmIdentifier {{PBES2-KDFs}},
+ *       encryptionScheme AlgorithmIdentifier {{PBES2-Encs}}
+ * }
+ * </pre>
+ *
  */
 
+public class EncryptedPrivateKeyInfo implements SecurityObject {
 public class EncryptedPrivateKeyInfo implements SecurityObject {
 
     // The "encryptionAlgorithm" is stored in either the algid or
@@ -76,11 +111,15 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
     //
     private static final String DEFAULT_ALGO = "PBEWithHmacSHA256AndAES_128";
 
+    //
+    private static final String DEFAULT_ALGO = "PBEWithHmacSHA256AndAES_128";
+
     /**
-     * Constructs an {@code EncryptedPrivateKeyInfo} from a given Encrypted
-     * PKCS#8 ASN.1 encoding.
+     * Constructs an {@code EncryptedPrivateKeyInfo} from
+     * a given Encrypted PKCS#8 ASN.1 encoding.
      * @param encoded the ASN.1 encoding to be parsed.
-     * @throws NullPointerException if {@code encoded} is {@code null}.
+     * @throws NullPointerException if {@code encoded} is
+     * {@code null}.
      * @throws IOException if error occurs when parsing the ASN.1 encoding.
      */
     public EncryptedPrivateKeyInfo(byte[] encoded) throws IOException {
@@ -190,8 +229,13 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
         }
 
         AlgorithmId tmp;
+//        List<KnownOIDs> list = getPBES2(algParams.getAlgorithm());
         try {
-            tmp = AlgorithmId.get(algParams);
+//            if (list == null) {
+                tmp = AlgorithmId.get(algParams);
+ //           } else {
+ //               tmp = AlgorithmId.get("PBES2");
+ //           }
         } catch (IllegalStateException e) {
             // This exception is thrown when algParams.getEncoded() fails.
             // While the spec of this constructor requires that
@@ -202,6 +246,7 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
             tmp = null;
         }
 
+        // one and only one is non-null
         // one and only one is non-null
         this.algid = tmp;
         this.params = this.algid != null ? null : algParams;
@@ -218,6 +263,14 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
         // delay the generation of ASN.1 encoding until
         // getEncoded() is called
         this.encoded = null;
+    }
+
+    private EncryptedPrivateKeyInfo(byte[] encoded, byte[] eData,
+        AlgorithmId id, AlgorithmParameters p) {
+        this.encoded = encoded;
+        encryptedData = eData;
+        algid = id;
+        params = p;
     }
 
     private EncryptedPrivateKeyInfo(byte[] encoded, byte[] eData,
@@ -325,8 +378,6 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
      * @param p        the Provider that will perform the encryption
      * @return the byte [ ]
      * @throws IOException the io exception
-     *
-     * @since 23
      */
     public static EncryptedPrivateKeyInfo encryptKey(PrivateKey key,
         char[] password, String pbeAlgo, AlgorithmParameterSpec aps,
@@ -373,8 +424,6 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
      * @param password the password used in the PBE encryption.
      * @return an EncryptedPrivateKeyInfo.
      * @throws IOException if an encryption error occurs.
-     *
-     * @since 23
      */
     public static EncryptedPrivateKeyInfo encryptKey(PrivateKey key,
         char[] password) throws IOException {
@@ -397,8 +446,6 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
      * @return a PrivateKey
      * @throws IOException if an error occurs during parsing of the encrypted
      * data or creation of the key object.
-     *
-     * @since 23
      */
     public PrivateKey getKey(char[] password) throws IOException {
         return getKey(password, null);
@@ -412,8 +459,6 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
      * @return a PrivateKey
      * @throws IOException if an error occurs during parsing of the encrypted
      * data or creation of the key object.
-     *
-     * @since 23
      */
     public PrivateKey getKey(char[] password, Provider provider)
         throws IOException {
@@ -584,4 +629,34 @@ public class EncryptedPrivateKeyInfo implements SecurityObject {
             throw new IOException("invalid key encoding");
         }
     }
+
+    private static final String PBES2Header = "PBEWithHmacSHA";
+
+    /**
+     * Gets pbes 2.
+     *
+     * @param algo the algo
+     * @return the pbes 2
+     *//*
+    List<KnownOIDs> getPBES2(String algo) {
+        List<KnownOIDs> list = null;
+        if (!algo.startsWith(PBES2Header)) {
+            return list;
+        }
+
+        list =  new ArrayList<>(2);
+        if (algo.charAt(PBES2Header.length()) == '1') {
+            list.add(KnownOIDs.HmacSHA1);
+        } else {
+            list.add(KnownOIDs.findMatch(algo.substring(7, 17)));
+        }
+
+        if (algo.endsWith("AES_128")) {
+            list.add(KnownOIDs.findMatch("AES_128/CBC/NoPadding"));
+        } else if (algo.endsWith("AES_256")) {
+            list.add(KnownOIDs.findMatch("AES_258/CBC/NoPadding"));
+        }
+        return list;
+    }
+*/
 }

@@ -25,8 +25,11 @@
 
 package sun.security.ec.ed;
 
+import sun.security.ec.ECPrivateKeyImpl;
+import sun.security.ec.ECPublicKeyImpl;
 import sun.security.pkcs.PKCS8Key;
 
+import java.io.IOException;
 import java.security.*;
 import java.security.interfaces.*;
 import java.security.spec.*;
@@ -159,7 +162,18 @@ public class EdDSAKeyFactory extends KeyFactorySpi {
                 throw new InvalidKeyException(e);
             }
             return new EdDSAPublicKeyImpl(p8key.getPubKeyEncoded());
+        } else if (keySpec instanceof PKCS8EncodedKeySpec) {
+            PKCS8Key p8key = null;
+            try {
+                p8key = new EdDSAPrivateKeyImpl(
+                    ((PKCS8EncodedKeySpec)keySpec).getEncoded());
+            } catch (Exception e) {
+                throw new InvalidKeyException(e);
+            }
+            return new EdDSAPublicKeyImpl(p8key.getPubKeyEncoded());
         } else {
+            throw new InvalidKeySpecException(keySpec.getClass().getName() +
+                "not supported");
             throw new InvalidKeySpecException(keySpec.getClass().getName() +
                 "not supported");
         }

@@ -38,12 +38,26 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.security.*;
+import jdk.internal.access.SharedSecrets;
+import sun.security.util.DerInputStream;
+import sun.security.util.DerOutputStream;
+import sun.security.util.DerValue;
+import sun.security.util.InternalPrivateKey;
+import sun.security.x509.AlgorithmId;
+import sun.security.x509.X509Key;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Arrays;
 
 /**
  * Holds a PKCS#8 key, for example a private key
+ * <p>
  * <p>
  * According to https://tools.ietf.org/html/rfc5958:
  *
@@ -56,6 +70,7 @@ import java.util.Arrays;
  *        [[2: publicKey        [1] PublicKey OPTIONAL ]],
  *        ...
  *      }
+ * <p>
  * <p>
  * We support this format but do not parse attributes and publicKey now.
  */
@@ -70,9 +85,13 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
 
     /* The key bytes, without the algorithm information */
     protected byte[] privKeyMaterial;
+    protected byte[] privKeyMaterial;
 
     /* The encoded for the key. Created on demand by encode(). */
     protected byte[] encodedKey;
+
+    /* The encoded x509 public key for v2 */
+    protected byte[] pubKeyEncoded = null;
 
     /* The encoded x509 public key for v2 */
     protected byte[] pubKeyEncoded = null;
@@ -82,10 +101,13 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
     private static final int V2 = 1;
     private byte[] attributes;
     private int version;
+    private byte[] attributes;
+    private int version;
 
     /**
      * Default constructor. Constructors in subclasses that create a new key
      * from its components require this. These constructors must initialize
+     * {@link #algid} and {@link #privKeyMaterial}.
      * {@link #algid} and {@link #privKeyMaterial}.
      */
     protected PKCS8Key() { }
@@ -97,6 +119,7 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
      *
      * This method is also used by {@link #parseKey} to create a raw key.
      */
+    public PKCS8Key(byte[] input) throws InvalidKeyException {
     public PKCS8Key(byte[] input) throws InvalidKeyException {
         try {
             decode(new DerValue(input));
@@ -121,12 +144,30 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
      * in this class, key material remains in DER format for algorithm
      * subclasses to decode.
      */
+    private PKCS8Key(byte[] privEncoding, byte[] pubEncoding)
+        throws InvalidKeyException {
+        this(privEncoding);
+        pubKeyEncoded = pubEncoding;
+        version = V2;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    /**
+     * Method for decoding PKCS8 v1 and v2 formats. Decoded values are stored
+     * in this class, key material remains in DER format for algorithm
+     * subclasses to decode.
+     */
     private void decode(DerValue val) throws InvalidKeyException {
         try {
             if (val.tag != DerValue.tag_Sequence) {
                 throw new InvalidKeyException("invalid key format");
             }
 
+            // Support check for V1, aka 0, and V2, aka 1.
+            version = val.data.getInteger();
             // Support check for V1, aka 0, and V2, aka 1.
             version = val.data.getInteger();
             if (version != V1 && version != V2) {
@@ -137,12 +178,23 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
 
             // Store key material for subclasses to parse
             privKeyMaterial = val.data.getOctetString();
+            // Parse and store AlgorithmID
+            algid = AlgorithmId.parse(val.data.getDerValue());
 
+            // Store key material for subclasses to parse
+            privKeyMaterial = val.data.getOctetString();
+
+            // PKCS8 v1 typically ends here
             // PKCS8 v1 typically ends here
             if (val.data.available() == 0) {
                 return;
             }
 
+ /*           DerValue next = val.data.getDerValue();
+            if (next.isContextSpecific((byte)0)) {
+                attributes = next.toByteArray();
+            }
+  */
             // OPTIONAL Context tag 0 for Attributes for PKCS8 v1 & v2
             var result =
                 val.data.getOptionalImplicitContextSpecific(0,
@@ -163,11 +215,22 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
                     // Store public key material for later parsing
                     pubKeyEncoded = new X509Key(algid,
                         result.get().getUnalignedBitString()).getEncoded();
+            }
+
+            // OPTIONAL context tag 1 for Public Key for PKCS8 v2 only
+            if (version == V2) {
+                result = val.data.getOptionalImplicitContextSpecific(1,
+                    DerValue.tag_BitString);
+                if (result.isPresent()) {
+                    // Store public key material for later parsing
+                    pubKeyEncoded = new X509Key(algid,
+                        result.get().getUnalignedBitString()).getEncoded();
                 }
                 if (val.data.available() == 0) {
                     return;
                 }
             }
+
 
             throw new InvalidKeyException("Extra bytes");
         } catch (IOException e) {
@@ -196,6 +259,9 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
     public static PrivateKey parseKey(byte[] encoded) throws IOException {
         try {
             PKCS8Key rawKey = new PKCS8Key(encoded);
+            byte[] internal = rawKey.generateEncoding();
+            PKCS8EncodedKeySpec pkcs8KeySpec =
+                new PKCS8EncodedKeySpec(internal);
             byte[] internal = rawKey.generateEncoding();
             PKCS8EncodedKeySpec pkcs8KeySpec =
                 new PKCS8EncodedKeySpec(internal);
@@ -238,9 +304,22 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
         return (pubKeyEncoded == null ? false : true);
     }
 
+    public byte[] getPubKeyEncoded() {
+        return pubKeyEncoded;
+    }
+
+    public byte[] getPrivKeyMaterial() {
+        return privKeyMaterial;
+    }
+
+    public boolean hasPublicKey() {
+        return (pubKeyEncoded == null ? false : true);
+    }
+
     /**
      * Returns the algorithm ID to be used with this key.
      */
+    public AlgorithmId getAlgorithmId () {
     public AlgorithmId getAlgorithmId () {
         return algid;
     }
@@ -281,6 +360,26 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
     }
 
     /**
+     * With a given encoded Public and Private key, generate and return a
+     * PKCS8v2 DER-encoded byte[].
+     *
+     * @param pubKeyEncoded DER-encoded PublicKey
+     * @param privKeyEncoded DER-encoded PrivateKey
+     * @return DER-encoded byte array
+     * @throws IOException thrown on encoding failure
+     */
+    public static byte[] getEncoded(byte[] pubKeyEncoded, byte[] privKeyEncoded)
+        throws IOException {
+        PKCS8Key privKey;
+        try {
+            privKey = new PKCS8Key(privKeyEncoded, pubKeyEncoded);
+        } catch (InvalidKeyException e) {
+            throw new IOException(e);
+        }
+        return privKey.generateEncoding();
+    }
+
+    /**
      * DER-encodes this key as a byte array stored inside this object
      * and return it.
      *
@@ -288,6 +387,12 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
      */
     private synchronized byte[] getEncodedInternal() {
         if (encodedKey == null) {
+            try {
+                encodedKey = generateEncoding();
+            } catch (IOException e) {
+                e.printStackTrace();
+                // encodedKey is still null
+            }
             try {
                 encodedKey = generateEncoding();
             } catch (IOException e) {
@@ -307,9 +412,11 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
         out.putOctetString(privKeyMaterial);
 
         if (attributes != null) {
+//            DerValue[] d = new DerValue[] {DerValue.wrap(attributes)};
             out.writeImplicit(
                 DerValue.createTag(DerValue.TAG_CONTEXT, false, (byte) 0),
                 new DerOutputStream().putOctetString(attributes));
+                //new DerOutputStream().putSequence(d));
 
         }
 
@@ -397,6 +504,7 @@ public class PKCS8Key implements PrivateKey, InternalPrivateKey {
         if (encodedKey != null) {
             Arrays.fill(encodedKey, (byte)0);
         }
+        Arrays.fill(privKeyMaterial, (byte)0);
         Arrays.fill(privKeyMaterial, (byte)0);
     }
 }

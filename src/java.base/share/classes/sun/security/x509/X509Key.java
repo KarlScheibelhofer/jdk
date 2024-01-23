@@ -99,7 +99,7 @@ public class X509Key implements PublicKey, DerEncoder {
      * Gets the key. The key may or may not be byte aligned.
      * @return a BitArray containing the key.
      */
-    protected BitArray getKey() {
+    public BitArray getKey() {
         return (BitArray)bitStringKey.clone();
     }
 
@@ -338,11 +338,23 @@ public class X509Key implements PublicKey, DerEncoder {
     }
 
     /**
-     * Parses X509 public key.  With PKCS8v2 allowing public keys in private key
-     * encoding, this method allows PKCS8Key access, but keeps the code in this
-     * file.
+     * jfkdsl
+     * @param encoded fjdskl
+     * @return fjdaskl
+     * @throws InvalidKeyException jfkdlsa
      */
     public static PublicKey parseKey(byte[] encoded) throws IOException {
+        //  XXX I doesn't look like I need to know the details of decoding here
+        //      I can let X509EKS figure out the algorithm and let the provider do it
+        /*
+        X509Key key = new X509Key();
+        try {
+            key.decode(encoded);
+        } catch (InvalidKeyException e) {
+            throw new IOException("corrupt public key", e);
+        }
+
+         */
         PublicKey pubKey;
         try {
             X509EncodedKeySpec spec = new X509EncodedKeySpec(encoded);
