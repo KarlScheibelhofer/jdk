@@ -25,68 +25,68 @@
 
 package sun.security.util;
 
-import sun.security.x509.AlgorithmId;
-
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
-import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.Objects;
+
+import sun.security.x509.AlgorithmId;
 
 /**
  * A utility class for PEM format encoding.
  */
 public class Pem {
 
-    /**
-     * Public Key PEM header & footer
-     */
-    public static final byte[] PUBHEADER = "-----BEGIN PUBLIC KEY-----"
-        .getBytes(StandardCharsets.UTF_8);
-    public static final byte[] PUBFOOTER = "-----END PUBLIC KEY-----"
-        .getBytes(StandardCharsets.UTF_8);
+    public static final byte[] LINESEPARATOR = "\r\n".getBytes(StandardCharsets.UTF_8);
 
-    /**
-     * Private Key PEM header & footer
-     */
-    public static final byte[] PKCS8HEADER = "-----BEGIN PRIVATE KEY-----"
-        .getBytes(StandardCharsets.UTF_8);
-    public static final byte[] PKCS8FOOTER = "-----END PRIVATE KEY-----"
-        .getBytes(StandardCharsets.UTF_8);
+    public enum Type {
+        UNKNOWN("UNKNOWN"), 
+        PRIVATE("PRIVATE KEY"), 
+        PUBLIC("PUBLIC KEY"), 
+        ENCRYPTED_PRIVATE("ENCRYPTED PRIVATE KEY"), 
+        CERTIFICATE("CERTIFICATE"), 
+        CRL("CRL");
 
-    /**
-     * Encrypted Private Key PEM header & footer
-     */
-    public static final byte[] PKCS8ENCHEADER = "-----BEGIN ENCRYPTED PRIVATE KEY-----"
-        .getBytes(StandardCharsets.UTF_8);
-    public static final byte[] PKCS8ENCFOOTER = "-----END ENCRYPTED PRIVATE KEY-----"
-        .getBytes(StandardCharsets.UTF_8);
+        private static final Map<String, Type> TAG_MAP = new HashMap<String, Type>(8);
 
-    /**
-     * Certificate PEM header & footer
-     */
-    public static final byte[] CERTHEADER = "-----BEGIN CERTIFICATE-----"
-        .getBytes(StandardCharsets.UTF_8);
-    public static final byte[] CERTFOOTER = "-----END CERTIFICATE-----"
-        .getBytes(StandardCharsets.UTF_8);
+        public static Type getByTag(String tag) {
+            Type t = TAG_MAP.get(tag);
+            if (t == null) {
+                return UNKNOWN;
+            }
+            return t;
+        }
 
-    /**
-     * CRL PEM header & footer
-     */
-    public static final byte[] CRLHEADER = "-----BEGIN CRL-----"
-        .getBytes(StandardCharsets.UTF_8);
-    public static final byte[] CRLFOOTER = "-----END CRL-----"
-        .getBytes(StandardCharsets.UTF_8);
+        static {
+            for (Type keyType : Type.values()) {
+                TAG_MAP.put(new String(keyType.getTag(), StandardCharsets.US_ASCII), keyType);
+            }
+        }        
 
-    public static final byte[] LINESEPARATOR = "\r\n"
-        .getBytes(StandardCharsets.UTF_8);
+        private byte[] tag;
+        private byte[] header;
+        private byte[] footer;
 
-    private static final Pem NULLPEM = new Pem(null, null, null);
+        Type(String tag) {
+            this.tag = tag.getBytes(StandardCharsets.US_ASCII);    
+            this.header = ("-----BEGIN " + tag + "-----").getBytes(StandardCharsets.US_ASCII);
+            this.footer = ("-----END " + tag + "-----").getBytes(StandardCharsets.US_ASCII);
+        }
 
-    public enum KeyType {
-        UNKNOWN, PRIVATE, PUBLIC, ENCRYPTED_PRIVATE, CERTIFICATE, CRL
+        public byte[] getTag() {
+            return this.tag;
+        }
+        public byte[] getHeader() {
+            return this.header;
+        }
+        public byte[] getFooter() {
+            return this.footer;
+        }
     }
 
     public static final String DEFAULT_ALGO;
@@ -95,13 +95,12 @@ public class Pem {
         DEFAULT_ALGO = Security.getProperty("jdk.epkcs8.defaultAlgorithm");
     }
 
-    private byte[] header, footer;
+    private Type type;
     private byte[] data;
 
-    private Pem(byte[] header, byte[] data, byte[] footer) {
-        this.header = header;
+    private Pem(byte[] data, Type type) {
         this.data = data;
-        this.footer = footer;
+        this.type = type;
     }
     /**
      * Decodes a PEM-encoded block.
@@ -137,14 +136,6 @@ public class Pem {
 
     public static Pem readPEM(InputStream is) throws IOException {
         return readPEM(is, false);
-    }
-
-    public static Pem readPEM(Reader reader, boolean shortHeader) throws IOException {
-        return readPEM(new ReaderInputStream(reader), shortHeader);
-    }
-
-    public static Pem readPEM(Reader reader) throws IOException {
-        return readPEM(new ReaderInputStream(reader), false);
     }
 
     /**
@@ -287,38 +278,17 @@ public class Pem {
             throw new IOException("Header and footer do not match: " +
                 header + " " + footer);
         }
+        Type pemType = Type.getByTag(headerType);
 
-        return new Pem(header.getBytes(StandardCharsets.UTF_8),
-            data.getBytes(StandardCharsets.UTF_8),
-            footer.getBytes(StandardCharsets.UTF_8));
+        return new Pem(data.getBytes(StandardCharsets.UTF_8), pemType);
     }
 
     public byte[] getData() {
         return data;
     }
 
-    public byte[] getHeader() {
-        return header;
+    public Type getType() {
+        return type;
     }
 
-    public byte[] getFooter() {
-        return footer;
-    }
-
-    public void clean() {
-        Arrays.fill(data, (byte)0);
-    }
-
-    static class ReaderInputStream extends InputStream {
-
-        Reader r;
-        ReaderInputStream(Reader r) {
-            this.r = r;
-        }
-
-        @Override
-        public int read() throws IOException {
-            return r.read();
-        }
-    }
 }

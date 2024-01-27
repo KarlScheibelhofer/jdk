@@ -89,44 +89,27 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
      * header and footer and proceed with decoding the base64 for the
      * appropriate type.
      */
-    private SecurityObject decode(byte[] data, byte[] header,
-        byte[] footer) throws IOException {
-        Pem.KeyType keyType;
-
-        if (Arrays.mismatch(header, Pem.PUBHEADER) == -1 &&
-            Arrays.mismatch(footer, Pem.PUBFOOTER) == -1) {
-            keyType = Pem.KeyType.PUBLIC;
-        } else if (Arrays.mismatch(header, Pem.PKCS8HEADER) == -1 &&
-            Arrays.mismatch(footer, Pem.PKCS8FOOTER) == -1) {
-            keyType = Pem.KeyType.PRIVATE;
-        } else if (Arrays.mismatch(header, Pem.PKCS8ENCHEADER) == -1 &&
-            Arrays.mismatch(footer, Pem.PKCS8ENCFOOTER) == -1) {
-            keyType = Pem.KeyType.ENCRYPTED_PRIVATE;
-        } else if (Arrays.mismatch(header, Pem.CERTHEADER) == -1 &&
-            Arrays.mismatch(footer, Pem.CERTFOOTER) == -1) {
-            keyType = Pem.KeyType.CERTIFICATE;
-        } else if (Arrays.mismatch(header, Pem.CRLHEADER) == -1 &&
-            Arrays.mismatch(footer, Pem.CRLFOOTER) == -1) {
-            keyType = Pem.KeyType.CRL;
-        } else {
+    private SecurityObject decode(Pem pem) throws IOException {
+        Pem.Type pemType = pem.getType();
+        if (pemType.equals(Pem.Type.UNKNOWN))  {
             throw new IOException("Unsupported PEM header/footer");
         }
 
         if (password != null) {
-            if (keyType != Pem.KeyType.ENCRYPTED_PRIVATE) {
-                throw new IOException("Decoder configured only for " +
-                    "encrypted PEM.");
+            if (pemType != Pem.Type.ENCRYPTED_PRIVATE) {
+                throw new IOException("Decoder configured only for encrypted PEM.");
             }
         }
 
         Base64.Decoder decoder = Base64.getMimeDecoder();
+        byte[] data = pem.getData();
 
-        return switch (keyType) {
+        return switch (pemType) {
             case PUBLIC -> {
                 X509EncodedKeySpec spec =
                     new X509EncodedKeySpec(decoder.decode(data));
                 try {
-                    yield ((KeyFactory) getFactory(keyType,
+                    yield ((KeyFactory) getFactory(pemType,
                         spec.getAlgorithm())).generatePublic(spec);
                 } catch (Exception e) {
                     throw new IOException(e);
@@ -137,7 +120,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
                     PKCS8Key p8key = new PKCS8Key(decoder.decode(data));
                     PrivateKey priKey;
                     KeyFactory kf = (KeyFactory)
-                        getFactory(keyType, p8key.getAlgorithm());
+                        getFactory(pemType, p8key.getAlgorithm());
                     priKey = kf.generatePrivate(
                         new PKCS8EncodedKeySpec(p8key.getEncoded(),
                             p8key.getAlgorithm()));
@@ -146,7 +129,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
                         X509EncodedKeySpec spec = new X509EncodedKeySpec(
                             p8key.getPubKeyEncoded(), p8key.getAlgorithm());
                         yield new KeyPair(((KeyFactory)
-                                getFactory(keyType, p8key.getAlgorithm()))
+                                getFactory(pemType, p8key.getAlgorithm()))
                                 .generatePublic(spec),
                             priKey);
                     }
@@ -165,7 +148,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
             case CERTIFICATE -> {
                 try {
                     CertificateFactory cf =
-                        (CertificateFactory) getFactory(keyType, "X509");
+                        (CertificateFactory) getFactory(pemType, "X509");
                     yield cf.generateCertificate(
                         new ByteArrayInputStream(decoder.decode(data)));
                 } catch (CertificateException e) {
@@ -175,7 +158,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
             case CRL -> {
                 try {
                     CertificateFactory cf =
-                        (CertificateFactory) getFactory(keyType, "X509");
+                        (CertificateFactory) getFactory(pemType, "X509");
                     yield cf.generateCRL(
                         new ByteArrayInputStream(decoder.decode(data)));
 
@@ -218,7 +201,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
         if (pem == null) {
             throw new IOException("No PEM data found.");
         }
-        return decode(pem.getData(), pem.getHeader(), pem.getFooter());
+        return decode(pem);
     }
 
     /**
@@ -284,7 +267,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
     }
 
     // Convenience method to avoid provider getInstance checks clutter
-    private Object getFactory(Pem.KeyType type, String algorithm)
+    private Object getFactory(Pem.Type type, String algorithm)
         throws IOException {
         try {
             if (factory == null) {
