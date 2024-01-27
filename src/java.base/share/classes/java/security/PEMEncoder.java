@@ -25,26 +25,31 @@
 
 package java.security;
 
-import sun.security.pkcs.PKCS8Key;
-import sun.security.util.DerOutputStream;
-import sun.security.util.DerValue;
-import sun.security.util.Pem;
-import sun.security.x509.AlgorithmId;
-
-import javax.crypto.Cipher;
-import javax.crypto.EncryptedPrivateKeyInfo;
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.cert.*;
+import java.security.cert.CRL;
+import java.security.cert.CRLException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.X509CRL;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Objects;
+
+import javax.crypto.Cipher;
+import javax.crypto.EncryptedPrivateKeyInfo;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
+import sun.security.pkcs.PKCS8Key;
+import sun.security.util.DerOutputStream;
+import sun.security.util.DerValue;
+import sun.security.util.Pem;
+import sun.security.x509.AlgorithmId;
 
 /**
  * PEMEncoder is an immutable Privacy-Enhanced Mail (PEM) encoding class.
@@ -109,56 +114,14 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
      * @param encoded the encoded
      * @return the string
      */
-    private byte[] pemEncoded(Pem.KeyType keyType, byte[] encoded) {
+    private byte[] pemEncoded(Pem.Type keyType, byte[] encoded) {
         ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
-        switch (keyType) {
-            case PUBLIC -> {
-                os.writeBytes(Pem.PUBHEADER);
-                os.writeBytes(Pem.LINESEPARATOR);
-                os.writeBytes(convertToPEM(encoded));
-                os.writeBytes(Pem.PUBFOOTER);
-                os.writeBytes(Pem.LINESEPARATOR);
-            }
-            case PRIVATE -> {
-                os.writeBytes(Pem.PKCS8HEADER);
-                os.writeBytes(Pem.LINESEPARATOR);
-                os.writeBytes(convertToPEM(encoded));
-                os.writeBytes(Pem.PKCS8FOOTER);
-                os.writeBytes(Pem.LINESEPARATOR);
-            }
-            case ENCRYPTED_PRIVATE -> {
-                os.writeBytes(Pem.PKCS8ENCHEADER);
-                os.writeBytes(Pem.LINESEPARATOR);
-                os.writeBytes(convertToPEM(encoded));
-                os.writeBytes(Pem.PKCS8ENCFOOTER);
-                os.writeBytes(Pem.LINESEPARATOR);
-            }
-            default -> {
-                return new byte[0];
-            }
-        }
-        return os.toByteArray();
-    }
+        os.writeBytes(keyType.getHeader());
+        os.writeBytes(Pem.LINESEPARATOR);
+        os.writeBytes(Base64.getMimeEncoder(64, Pem.LINESEPARATOR).encode(encoded));        
+        os.writeBytes(Pem.LINESEPARATOR);
+        os.writeBytes(keyType.getFooter());
 
-    static byte[] convertToPEM(byte[] encoding) {
-        if (encoding.length == 0) {
-            return new byte[0];
-        }
-        Base64.Encoder e = Base64.getMimeEncoder(64, Pem.LINESEPARATOR);
-        ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
-        /*
-        byte[] pem = e.encode(encoding);
-        int len = pem.length;
-        int i = 0;
-        while (i + 64 < len) {
-            os.write(pem, i, 64);
-            os.writeBytes(Pem.LINESEPARATOR);
-            i += 64;
-        }
-        os.write(pem, i, pem.length - i);
-         */
-        os.writeBytes(e.encode(encoding));
-        os.writeBytes(Pem.LINESEPARATOR);  // Maybe can remove if the encoder changes
         return os.toByteArray();
     }
 
@@ -174,7 +137,7 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
      * @see #withEncryption(char[])
      */
     public String encodeToString(SecurityObject so) throws IOException {
-            return new String(encode(so), StandardCharsets.UTF_8);
+            return new String(encode(so), StandardCharsets.US_ASCII);
     }
 
     /**
@@ -210,29 +173,29 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
                 if (cipher != null) {
                     throw new IOException("encrypt was incorrectly used");
                 }
-                yield pemEncoded(Pem.KeyType.ENCRYPTED_PRIVATE, e.getEncoded());
+                yield pemEncoded(Pem.Type.ENCRYPTED_PRIVATE, e.getEncoded());
             }
             case Certificate c -> {
                 ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
-                os.writeBytes(Pem.CERTHEADER);
+                os.writeBytes(Pem.Type.CERTIFICATE.getHeader());
                 try {
                     os.writeBytes(Base64.getMimeEncoder().encode(c.getEncoded()));
                 } catch (CertificateException e) {
                     throw new IOException(e);
                 }
-                os.writeBytes(Pem.CERTFOOTER);
+                os.writeBytes(Pem.Type.CERTIFICATE.getFooter());
                 yield os.toByteArray();
             }
             case CRL crl -> {
                 X509CRL xcrl = (X509CRL)crl;
                 ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
-                os.write(Pem.CRLHEADER);
+                os.write(Pem.Type.CRL.getHeader());
                 try {
                     os.writeBytes(Base64.getMimeEncoder().encode(xcrl.getEncoded()));
                 } catch (CRLException e) {
                     throw new IOException(e);
                 }
-                os.write(Pem.CRLFOOTER);
+                os.write(Pem.Type.CRL.getFooter());
                 yield os.toByteArray();
             }
             default -> throw new IOException("PEM does not support " +
@@ -304,19 +267,19 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
             } catch (Exception e) {
                 throw new IOException(e);
             }
-            return pemEncoded(Pem.KeyType.ENCRYPTED_PRIVATE, encoded);
+            return pemEncoded(Pem.Type.ENCRYPTED_PRIVATE, encoded);
         }
 
         // X509 only
         if (publicBytes != null && privateBytes == null) {
-            return pemEncoded(Pem.KeyType.PUBLIC, publicBytes);
+            return pemEncoded(Pem.Type.PUBLIC, publicBytes);
         }
         // PKCS8 only
         if (publicBytes == null && privateBytes != null) {
-            return pemEncoded(Pem.KeyType.PRIVATE, privateBytes);
+            return pemEncoded(Pem.Type.PRIVATE, privateBytes);
         }
         // OAS
-        return pemEncoded(Pem.KeyType.PRIVATE, PKCS8Key.getEncoded(publicBytes,
+        return pemEncoded(Pem.Type.PRIVATE, PKCS8Key.getEncoded(publicBytes,
             privateBytes));
     }
 }
