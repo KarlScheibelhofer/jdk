@@ -84,7 +84,7 @@ class PemReader implements Closeable {
 
         // we must check this, because PEMDecoder.decode will throw an Exception otherwise and does not handle unknown types
         if (isSupportedType(pemBeginLine)) {
-            SecurityObject decodedObject = new PEMDecoder().decode(pemBlockBuffer.toString());
+            SecurityObject decodedObject = PEMDecoder.of().decode(pemBlockBuffer.toString());
             return switch (decodedObject) {
                 case PrivateKey privateKey -> new Pem.PrivateKeyEntry(alias, privateKey);
                 case X509Certificate certificate -> new Pem.CertificateEntry(alias, certificate);

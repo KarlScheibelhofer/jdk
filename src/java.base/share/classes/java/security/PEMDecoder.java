@@ -187,7 +187,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
             case PKCS1 -> {
                 try {
                     KeyFactory kf = (KeyFactory)
-                        getFactory(keyType, "RSA");
+                        getFactory(pemType, "RSA");
                     yield kf.generatePrivate(
                         RSAPrivateCrtKeyImpl.getKeySpec(decoder.decode(data)));
                 } catch (Exception e) {
@@ -292,8 +292,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
             throw new IOException("No PEM data found.");
         }
 
-        SecurityObject so =
-            decode(pem.getData(), pem.getHeader(), pem.getFooter());
+        SecurityObject so = decode(pem);
 
         /*
          * KeySpec use getKeySpec after the Key has been generated.  Even though
@@ -316,7 +315,7 @@ final public class PEMDecoder implements Decoder<SecurityObject> {
                 try {
                     // unchecked suppressed as we know tClass comes from KeySpec
                     // KeyType not relevant here.  We just want KeyFactory
-                    so = ((KeyFactory) getFactory(Pem.KeyType.PRIVATE,
+                    so = ((KeyFactory) getFactory(Pem.Type.PRIVATE,
                         key.getAlgorithm())).
                         getKeySpec(key, (Class<KeySpec>) tClass);
                 } catch (InvalidKeySpecException e) {

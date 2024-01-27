@@ -29,7 +29,7 @@ class PemWriter implements Closeable, Flushable {
     }
 
     void writeEntry(Pem.Entry entry) {
-        PEMEncoder encoder = new PEMEncoder();
+        PEMEncoder encoder = PEMEncoder.of();
         try {
             switch (entry) {
                 case Pem.EncryptedPrivateKeyEntry encryptedPrivateKeyEntry: writeEncodedPemEntry(entry.alias, encoder.encodeToString(encryptedPrivateKeyEntry.encryptedPrivateKey)); break;

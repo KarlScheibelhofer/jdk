@@ -91,7 +91,7 @@ public class X509Key implements PublicKey, DerEncoder {
     /**
      * Sets the key in the BitArray form.
      */
-    protected void setKey(BitArray key) {
+    protected final void setKey(BitArray key) {
         this.bitStringKey = (BitArray)key.clone();
     }
 
@@ -99,7 +99,7 @@ public class X509Key implements PublicKey, DerEncoder {
      * Gets the key. The key may or may not be byte aligned.
      * @return a BitArray containing the key.
      */
-    public BitArray getKey() {
+    public final BitArray getKey() {
         return (BitArray)bitStringKey.clone();
     }
 
@@ -259,7 +259,7 @@ public class X509Key implements PublicKey, DerEncoder {
         return getEncodedInternal().clone();
     }
 
-    public byte[] getEncodedInternal() {
+    public final byte[] getEncodedInternal() {
         byte[] encoded = encodedKey;
         if (encoded == null) {
             DerOutputStream out = new DerOutputStream();
@@ -279,7 +279,7 @@ public class X509Key implements PublicKey, DerEncoder {
     /**
      * Returns the DER-encoded form of the key as a byte array.
      */
-    public byte[] encode() {
+    public final byte[] encode() {
         return getEncodedInternal().clone();
     }
 
