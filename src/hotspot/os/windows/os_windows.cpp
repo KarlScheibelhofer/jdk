@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1396,6 +1396,9 @@ const char* os::get_current_directory(char *buf, size_t buflen) {
   int n = static_cast<int>(buflen);
   if (buflen > INT_MAX)  n = INT_MAX;
   return _getcwd(buf, n);
+}
+
+void os::prepare_native_symbols() {
 }
 
 //-----------------------------------------------------------
@@ -3328,9 +3331,10 @@ char* os::replace_existing_mapping_with_file_mapping(char* base, size_t size, in
 // virtual space to get requested alignment, like posix-like os's.
 // Windows prevents multiple thread from remapping over each other so this loop is thread-safe.
 static char* map_or_reserve_memory_aligned(size_t size, size_t alignment, int file_desc) {
-  assert((alignment & (os::vm_allocation_granularity() - 1)) == 0,
-         "Alignment must be a multiple of allocation granularity (page size)");
-  assert((size & (alignment -1)) == 0, "size must be 'alignment' aligned");
+  assert(is_aligned(alignment, os::vm_allocation_granularity()),
+      "Alignment must be a multiple of allocation granularity (page size)");
+  assert(is_aligned(size, os::vm_allocation_granularity()),
+      "Size must be a multiple of allocation granularity (page size)");
 
   size_t extra_size = size + alignment;
   assert(extra_size >= size, "overflow, size is too large to allow alignment");
@@ -3430,10 +3434,6 @@ bool os::can_commit_large_page_memory() {
   // and committed in a single VirtualAlloc() call. This may change in the
   // future, but with Windows 2003 it's not possible to commit on demand.
   return false;
-}
-
-bool os::can_execute_large_page_memory() {
-  return true;
 }
 
 static char* reserve_large_pages_individually(size_t size, char* req_addr, bool exec) {
@@ -3796,6 +3796,11 @@ bool os::unguard_memory(char* addr, size_t bytes) {
 
 void os::pd_realign_memory(char *addr, size_t bytes, size_t alignment_hint) { }
 void os::pd_free_memory(char *addr, size_t bytes, size_t alignment_hint) { }
+
+size_t os::pd_pretouch_memory(void* first, void* last, size_t page_size) {
+  return page_size;
+}
+
 void os::numa_make_global(char *addr, size_t bytes)    { }
 void os::numa_make_local(char *addr, size_t bytes, int lgrp_hint)    { }
 bool os::numa_topology_changed()                       { return false; }
@@ -3823,11 +3828,6 @@ int os::numa_get_group_id_for_address(const void* address) {
 
 bool os::numa_get_group_ids_for_range(const void** addresses, int* lgrp_ids, size_t count) {
   return false;
-}
-
-char *os::scan_pages(char *start, char* end, page_info* page_expected,
-                     page_info* page_found) {
-  return end;
 }
 
 char* os::non_memory_address_word() {
@@ -5359,7 +5359,8 @@ int PlatformEvent::park(jlong Millis) {
       phri = new HighResolutionInterval(prd);
     }
     rv = ::WaitForSingleObject(_ParkHandle, prd);
-    assert(rv == WAIT_OBJECT_0 || rv == WAIT_TIMEOUT, "WaitForSingleObject failed");
+    assert(rv != WAIT_FAILED,   "WaitForSingleObject failed with error code: %lu", GetLastError());
+    assert(rv == WAIT_OBJECT_0 || rv == WAIT_TIMEOUT, "WaitForSingleObject failed with return value: %lu", rv);
     if (rv == WAIT_TIMEOUT) {
       Millis -= prd;
     }
@@ -5398,7 +5399,8 @@ void PlatformEvent::park() {
   // spin attempts by this thread.
   while (_Event < 0) {
     DWORD rv = ::WaitForSingleObject(_ParkHandle, INFINITE);
-    assert(rv == WAIT_OBJECT_0, "WaitForSingleObject failed");
+    assert(rv != WAIT_FAILED,   "WaitForSingleObject failed with error code: %lu", GetLastError());
+    assert(rv == WAIT_OBJECT_0, "WaitForSingleObject failed with return value: %lu", rv);
   }
 
   // Usually we'll find _Event == 0 at this point, but as
@@ -5461,16 +5463,25 @@ void Parker::park(bool isAbsolute, jlong time) {
   JavaThread* thread = JavaThread::current();
 
   // Don't wait if interrupted or already triggered
-  if (thread->is_interrupted(false) ||
-      WaitForSingleObject(_ParkHandle, 0) == WAIT_OBJECT_0) {
+  if (thread->is_interrupted(false)) {
     ResetEvent(_ParkHandle);
     return;
   } else {
-    ThreadBlockInVM tbivm(thread);
-    OSThreadWaitState osts(thread->osthread(), false /* not Object.wait() */);
+    DWORD rv = WaitForSingleObject(_ParkHandle, 0);
+    assert(rv != WAIT_FAILED,   "WaitForSingleObject failed with error code: %lu", GetLastError());
+    assert(rv == WAIT_OBJECT_0 || rv == WAIT_TIMEOUT, "WaitForSingleObject failed with return value: %lu", rv);
+    if (rv == WAIT_OBJECT_0) {
+      ResetEvent(_ParkHandle);
+      return;
+    } else {
+      ThreadBlockInVM tbivm(thread);
+      OSThreadWaitState osts(thread->osthread(), false /* not Object.wait() */);
 
-    WaitForSingleObject(_ParkHandle, time);
-    ResetEvent(_ParkHandle);
+      rv = WaitForSingleObject(_ParkHandle, time);
+      assert(rv != WAIT_FAILED,   "WaitForSingleObject failed with error code: %lu", GetLastError());
+      assert(rv == WAIT_OBJECT_0 || rv == WAIT_TIMEOUT, "WaitForSingleObject failed with return value: %lu", rv);
+      ResetEvent(_ParkHandle);
+    }
   }
 }
 
@@ -5546,7 +5557,9 @@ int os::fork_and_exec(const char* cmd) {
 
   if (rslt) {
     // Wait until child process exits.
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    DWORD rv = WaitForSingleObject(pi.hProcess, INFINITE);
+    assert(rv != WAIT_FAILED,   "WaitForSingleObject failed with error code: %lu", GetLastError());
+    assert(rv == WAIT_OBJECT_0, "WaitForSingleObject failed with return value: %lu", rv);
 
     GetExitCodeProcess(pi.hProcess, &exit_code);
 
