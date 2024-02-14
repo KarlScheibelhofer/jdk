@@ -70,13 +70,16 @@ class PemReader implements Closeable {
                 pemEndLine = line;
                 break;
             }
-            base64Builder.append(line).append('\n');
+            base64Builder.append(line);
         }
-
+        String base64Data = base64Builder.toString().trim();
+        if (base64Data.length() == 0) {
+            return null;
+        }
 
         StringBuilder pemBlockBuffer = new StringBuilder(1024);
         pemBlockBuffer.append(pemBeginLine).append('\n');
-        pemBlockBuffer.append(base64Builder.toString());
+        pemBlockBuffer.append(base64Data);
         pemBlockBuffer.append(pemEndLine).append('\n');
 
         System.out.println("pemBlockBuffer:");
