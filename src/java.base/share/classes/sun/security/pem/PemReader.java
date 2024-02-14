@@ -6,10 +6,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.security.PEMDecoder;
+import java.security.PrivateKey;
+import java.security.SecurityObject;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+
+import javax.crypto.EncryptedPrivateKeyInfo;
 
 /**
  * Reading PEM entries from a stream.
@@ -36,38 +42,59 @@ class PemReader implements Closeable {
     }
 
     Pem.Entry readEntry() throws IOException {
-        StringBuilder sb = new StringBuilder(1024);
-        String line;
-        Pem.Entry entry = new Pem.UnknownEntry(null, null);
         String alias = this.aliasCandidate;
-
-        while ((line = reader.readLine()) != null && !line.startsWith(Pem.BEGIN)) {
+        
+        // read up to and including "-----BEGIN..." line, catching alias info
+        String line = null;
+        String pemBeginLine = null;
+        while ((line = reader.readLine()) != null) {
+            if (line.startsWith(Pem.BEGIN)) {
+                pemBeginLine = line;
+                break;
+            }
             String trimmedLine = line.trim();
             if (trimmedLine.isEmpty()) {
+                // ignore empty lines
                 continue;
             }
             if (trimmedLine.toLowerCase(Locale.US).startsWith("alias:")) {
                 alias = trimmedLine.substring(trimmedLine.indexOf(':') + 1, trimmedLine.length()).trim();
             }
         }
-
-        if (line != null) {
-            switch (line) {
-                case Pem.BEGIN_CERTIFICATE:  entry = new Pem.CertificateEntry(alias); break;
-                case Pem.BEGIN_PRIVATE_KEY:  entry = new Pem.PrivateKeyEntry(alias); break;
-                case Pem.BEGIN_ENCRYPTED_PRIVATE_KEY:  entry = new Pem.EncryptedPrivateKeyEntry(alias); break;
-                default: entry = new Pem.UnknownEntry(alias, line);
+        
+        // read up to and including "-----END..." line
+        StringBuilder base64Builder = new StringBuilder(1024);
+        String pemEndLine = null;
+        while ((line = reader.readLine()) != null) {
+            if (line.startsWith(Pem.END)) {
+                pemEndLine = line;
+                break;
             }
+            base64Builder.append(line).append('\n');
         }
 
-        while ((line = reader.readLine()) != null && !line.startsWith(Pem.END)) {
-            sb.append(line);
-        }
-        String base64 = sb.toString().trim();
-        if (base64.length() == 0) {
-            return null;
-        }
-        entry.initFromEncoding(Base64.getMimeDecoder().decode(sb.toString()));
+
+        StringBuilder pemBlockBuffer = new StringBuilder(1024);
+        pemBlockBuffer.append(pemBeginLine).append('\n');
+        pemBlockBuffer.append(base64Builder.toString());
+        pemBlockBuffer.append(pemEndLine).append('\n');
+
+        System.out.println("pemBlockBuffer:");
+        System.out.println(pemBlockBuffer.toString());
+
+        SecurityObject decodedObject = new PEMDecoder().decode(pemBlockBuffer.toString());
+
+        Pem.Entry entry = switch (decodedObject) {
+            case PrivateKey privateKey -> new Pem.PrivateKeyEntry(alias, privateKey);
+            case X509Certificate certificate -> new Pem.CertificateEntry(alias, certificate);
+            case EncryptedPrivateKeyInfo encryptedPrivateKey -> new Pem.EncryptedPrivateKeyEntry(alias, encryptedPrivateKey);
+            default -> {
+                Pem.UnknownEntry unknownEntry = new Pem.UnknownEntry(alias, pemBeginLine);
+                unknownEntry.initFromEncoding(Base64.getMimeDecoder().decode(base64Builder.toString()));
+                yield unknownEntry;
+            }
+        };
+
         return entry;
     }
 

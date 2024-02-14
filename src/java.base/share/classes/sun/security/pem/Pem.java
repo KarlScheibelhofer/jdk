@@ -130,6 +130,16 @@ abstract class Pem {
             encryptPrivateKey(password);
         }
 
+        public EncryptedPrivateKeyEntry(String alias, EncryptedPrivateKeyInfo encryptedPprivateKey) {
+            super(Type.encryptedPrivateKey, alias);
+            this.encryptedPrivateKey = encryptedPrivateKey;
+            try {
+                this.encoding = encryptedPprivateKey.getEncoded();
+            } catch (IOException e) {
+                throw new PemKeystoreException("failed encoding encrypted private key", e);
+            }            
+        }
+
         @Override
         void initFromEncoding(byte[] encoding) throws IOException {
             this.encoding = encoding;
