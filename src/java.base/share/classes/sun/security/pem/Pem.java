@@ -130,11 +130,11 @@ abstract class Pem {
             encryptPrivateKey(password);
         }
 
-        public EncryptedPrivateKeyEntry(String alias, EncryptedPrivateKeyInfo encryptedPprivateKey) {
+        public EncryptedPrivateKeyEntry(String alias, EncryptedPrivateKeyInfo encryptedPrivateKey) {
             super(Type.encryptedPrivateKey, alias);
             this.encryptedPrivateKey = encryptedPrivateKey;
             try {
-                this.encoding = encryptedPprivateKey.getEncoded();
+                this.encoding = encryptedPrivateKey.getEncoded();
             } catch (IOException e) {
                 throw new PemKeystoreException("failed encoding encrypted private key", e);
             }            
@@ -152,18 +152,8 @@ abstract class Pem {
 
         void decryptPrivateKey(char[] password) throws NoSuchAlgorithmException {
             try {
-                PBEKeySpec pbeKeySpec = new PBEKeySpec(password);
-                AlgorithmParameters algParams = this.encryptedPrivateKey.getAlgParameters();
-                // toString() yields the correct name for the cipher, not epki.getAlgName();
-                String pbes2Name = algParams.toString();
-                SecretKeyFactory skf = SecretKeyFactory.getInstance(pbes2Name);
-                Key pbeKey = skf.generateSecret(pbeKeySpec);
-                Cipher cipher = Cipher.getInstance(pbes2Name);
-                cipher.init(Cipher.DECRYPT_MODE, pbeKey, algParams);
-                PKCS8EncodedKeySpec keySpec = this.encryptedPrivateKey.getKeySpec(cipher);
-                KeyFactory kf = KeyFactory.getInstance(keySpec.getAlgorithm());
-                this.privateKey = kf.generatePrivate(keySpec);
-            } catch (Exception e) {
+                this.privateKey = this.encryptedPrivateKey.getKey(password);
+            } catch (IOException e) {
                 throw new PemKeystoreException("error decrypting private key", e);
             }
         }
