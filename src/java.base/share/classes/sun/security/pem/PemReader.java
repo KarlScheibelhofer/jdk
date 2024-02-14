@@ -82,7 +82,7 @@ class PemReader implements Closeable {
         pemBlockBuffer.append(base64Data);
         pemBlockBuffer.append(pemEndLine).append('\n');
 
-        // we must check this, because PEMDecoder.decode will throw an Exception otherwise
+        // we must check this, because PEMDecoder.decode will throw an Exception otherwise and does not handle unknown types
         if (isSupportedType(pemBeginLine)) {
             SecurityObject decodedObject = new PEMDecoder().decode(pemBlockBuffer.toString());
             return switch (decodedObject) {
