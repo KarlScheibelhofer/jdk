@@ -82,23 +82,32 @@ class PemReader implements Closeable {
         pemBlockBuffer.append(base64Data);
         pemBlockBuffer.append(pemEndLine).append('\n');
 
-        System.out.println("pemBlockBuffer:");
-        System.out.println(pemBlockBuffer.toString());
+        // we must check this, because PEMDecoder.decode will throw an Exception otherwise
+        if (isSupportedType(pemBeginLine)) {
+            SecurityObject decodedObject = new PEMDecoder().decode(pemBlockBuffer.toString());
+            return switch (decodedObject) {
+                case PrivateKey privateKey -> new Pem.PrivateKeyEntry(alias, privateKey);
+                case X509Certificate certificate -> new Pem.CertificateEntry(alias, certificate);
+                case EncryptedPrivateKeyInfo encryptedPrivateKey -> new Pem.EncryptedPrivateKeyEntry(alias, encryptedPrivateKey);
+                // ignore unsupported SecurityObject type as result of PEM decoding, e.g. CRL, which cannot be exposed via KeyStore API
+                default -> {
+                    Pem.Entry entry = new Pem.UnknownEntry(alias, pemBeginLine);
+                    entry.initFromEncoding(Base64.getMimeDecoder().decode(base64Builder.toString()));
+                    yield entry;                     
+                }
+            };
+            
+        } else {
+            Pem.Entry entry = new Pem.UnknownEntry(alias, pemBeginLine);
+            entry.initFromEncoding(Base64.getMimeDecoder().decode(base64Builder.toString()));
+            return entry;
+        }
+    }
 
-        SecurityObject decodedObject = new PEMDecoder().decode(pemBlockBuffer.toString());
-
-        Pem.Entry entry = switch (decodedObject) {
-            case PrivateKey privateKey -> new Pem.PrivateKeyEntry(alias, privateKey);
-            case X509Certificate certificate -> new Pem.CertificateEntry(alias, certificate);
-            case EncryptedPrivateKeyInfo encryptedPrivateKey -> new Pem.EncryptedPrivateKeyEntry(alias, encryptedPrivateKey);
-            default -> {
-                Pem.UnknownEntry unknownEntry = new Pem.UnknownEntry(alias, pemBeginLine);
-                unknownEntry.initFromEncoding(Base64.getMimeDecoder().decode(base64Builder.toString()));
-                yield unknownEntry;
-            }
-        };
-
-        return entry;
+    private boolean isSupportedType(String pemBeginLine) {
+        return pemBeginLine.startsWith(Pem.BEGIN_PRIVATE_KEY) ||
+               pemBeginLine.startsWith(Pem.BEGIN_CERTIFICATE) ||
+               pemBeginLine.startsWith(Pem.BEGIN_ENCRYPTED_PRIVATE_KEY);
     }
 
     @Override
