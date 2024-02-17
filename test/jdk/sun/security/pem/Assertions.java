@@ -93,9 +93,19 @@ public class Assertions {
     static void assertFilesEqual(File expectedFile, File realFile) throws Exception {
         assertFilesEqual(expectedFile.toPath(), realFile.toPath());
     }
-
+    
     static void assertFilesEqual(Path expectedPath, Path realPath) throws Exception {
-        assertArrayEquals(Files.readAllBytes(expectedPath), Files.readAllBytes(realPath));
+        System.out.println("Comparing " + expectedPath + " and " + realPath);
+        try {
+            assertArrayEquals(Files.readAllBytes(expectedPath), Files.readAllBytes(realPath));
+        } catch (Throwable t) {
+            System.out.println("assertFilesEqual Failed!");
+            System.out.println("Expected:");
+            System.out.println(new String(Files.readAllBytes(expectedPath)));
+            System.out.println("Actual:");
+            System.out.println(new String(Files.readAllBytes(realPath)));
+            throw t;
+        }
     }
 
     static void assertArrayEquals(byte[] expectedValue, byte[] value) throws Exception {
