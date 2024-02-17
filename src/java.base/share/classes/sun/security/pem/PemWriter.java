@@ -9,8 +9,11 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.PEMEncoder;
 import java.util.Base64;
 import java.util.List;
+
+import sun.security.pem.Pem.UnknownEntry;
 
 /**
  * Writing PEM entries to a stream.
@@ -26,12 +29,27 @@ class PemWriter implements Closeable, Flushable {
     }
 
     void writeEntry(Pem.Entry entry) {
-        switch (entry.type) {
-            case privateKey: writePemEntry(entry.alias, entry.encoding, Pem.BEGIN_PRIVATE_KEY, Pem.END_PRIVATE_KEY); break;
-            case encryptedPrivateKey: writePemEntry(entry.alias, entry.encoding, Pem.BEGIN_ENCRYPTED_PRIVATE_KEY, Pem.END_ENCRYPTED_PRIVATE_KEY); break;
-            case certificate: writePemEntry(entry.alias, entry.encoding, Pem.BEGIN_CERTIFICATE, Pem.END_CERTIFICATE); break;
-            case unknown: // intentional fall-through
-            default: writePemEntry(entry.alias, entry.encoding, Pem.BEGIN_CERTIFICATE, Pem.END_CERTIFICATE); break;
+        PEMEncoder encoder = new PEMEncoder();
+        try {
+            switch (entry) {
+                case Pem.EncryptedPrivateKeyEntry encryptedPrivateKeyEntry: writeEncodedPemEntry(encoder.encodeToString(encryptedPrivateKeyEntry.encryptedPrivateKey)); break;
+                case Pem.PrivateKeyEntry privateKeyEntry: writeEncodedPemEntry(encoder.encodeToString(privateKeyEntry.privateKey)); break;
+                case Pem.CertificateEntry certificateEntry: writeEncodedPemEntry(encoder.encodeToString(certificateEntry.certificate)); break;
+                case Pem.UnknownEntry unknownEntry: writePemEntry(entry.alias, unknownEntry.encoding, unknownEntry.pemBeginLine, unknownEntry.pemEndLine); break;
+                default: writePemEntry(entry.alias, entry.encoding, Pem.BEGIN_CERTIFICATE, Pem.END_CERTIFICATE); break;
+            }
+        } catch (IOException e) {
+            throw new PemKeystoreException("failed encoding and writing PEM entry", e);
+        }
+    }
+
+    private void writeEncodedPemEntry(String encodedEntry) {
+        try {
+            writer.write(encodedEntry);
+            writer.write("\n");
+            writer.flush();
+        } catch (IOException e) {
+            throw new PemKeystoreException("failed writing encoded PEM entry", e);
         }
     }
 
