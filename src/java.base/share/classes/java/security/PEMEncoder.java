@@ -155,11 +155,13 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
             case Certificate c -> {
                 ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
                 os.writeBytes(Pem.Type.CERTIFICATE.getHeader());
+                os.writeBytes(Pem.LINESEPARATOR);
                 try {
                     os.writeBytes(Base64.getMimeEncoder().encode(c.getEncoded()));
                 } catch (CertificateException e) {
                     throw new IOException(e);
                 }
+                os.writeBytes(Pem.LINESEPARATOR);
                 os.writeBytes(Pem.Type.CERTIFICATE.getFooter());
                 yield os.toByteArray();
             }
@@ -167,11 +169,13 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
                 X509CRL xcrl = (X509CRL)crl;
                 ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
                 os.write(Pem.Type.CRL.getHeader());
+                os.writeBytes(Pem.LINESEPARATOR);
                 try {
                     os.writeBytes(Base64.getMimeEncoder().encode(xcrl.getEncoded()));
                 } catch (CRLException e) {
                     throw new IOException(e);
                 }
+                os.writeBytes(Pem.LINESEPARATOR);
                 os.write(Pem.Type.CRL.getFooter());
                 yield os.toByteArray();
             }
