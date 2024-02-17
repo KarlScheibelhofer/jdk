@@ -91,14 +91,14 @@ class PemReader implements Closeable {
                 case EncryptedPrivateKeyInfo encryptedPrivateKey -> new Pem.EncryptedPrivateKeyEntry(alias, encryptedPrivateKey);
                 // ignore unsupported SecurityObject type as result of PEM decoding, e.g. CRL, which cannot be exposed via KeyStore API
                 default -> {
-                    Pem.Entry entry = new Pem.UnknownEntry(alias, pemBeginLine);
+                    Pem.Entry entry = new Pem.UnknownEntry(alias, pemBeginLine, pemEndLine);
                     entry.initFromEncoding(Base64.getMimeDecoder().decode(base64Builder.toString()));
                     yield entry;                     
                 }
             };
             
         } else {
-            Pem.Entry entry = new Pem.UnknownEntry(alias, pemBeginLine);
+            Pem.Entry entry = new Pem.UnknownEntry(alias, pemBeginLine, pemEndLine);
             entry.initFromEncoding(Base64.getMimeDecoder().decode(base64Builder.toString()));
             return entry;
         }

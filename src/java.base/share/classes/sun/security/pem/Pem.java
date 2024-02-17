@@ -254,10 +254,12 @@ abstract class Pem {
 
     static class UnknownEntry extends Entry {
         String pemBeginLine;
+        String pemEndLine;
 
-        UnknownEntry(String alias, String pemBeginLine) {
+        UnknownEntry(String alias, String pemBeginLine, String pemEndLine) {
             super(Type.unknown, alias);
             this.pemBeginLine = pemBeginLine;
+            this.pemEndLine = pemEndLine;
         }
     }
 
