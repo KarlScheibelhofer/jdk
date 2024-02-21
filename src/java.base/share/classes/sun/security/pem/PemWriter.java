@@ -32,9 +32,9 @@ class PemWriter implements Closeable, Flushable {
         PEMEncoder encoder = new PEMEncoder();
         try {
             switch (entry) {
-                case Pem.EncryptedPrivateKeyEntry encryptedPrivateKeyEntry: writeEncodedPemEntry(encoder.encodeToString(encryptedPrivateKeyEntry.encryptedPrivateKey)); break;
-                case Pem.PrivateKeyEntry privateKeyEntry: writeEncodedPemEntry(encoder.encodeToString(privateKeyEntry.privateKey)); break;
-                case Pem.CertificateEntry certificateEntry: writeEncodedPemEntry(encoder.encodeToString(certificateEntry.certificate)); break;
+                case Pem.EncryptedPrivateKeyEntry encryptedPrivateKeyEntry: writeEncodedPemEntry(entry.alias, encoder.encodeToString(encryptedPrivateKeyEntry.encryptedPrivateKey)); break;
+                case Pem.PrivateKeyEntry privateKeyEntry: writeEncodedPemEntry(entry.alias, encoder.encodeToString(privateKeyEntry.privateKey)); break;
+                case Pem.CertificateEntry certificateEntry: writeEncodedPemEntry(entry.alias, encoder.encodeToString(certificateEntry.certificate)); break;
                 case Pem.UnknownEntry unknownEntry: writePemEntry(entry.alias, unknownEntry.encoding, unknownEntry.pemBeginLine, unknownEntry.pemEndLine); break;
                 default: writePemEntry(entry.alias, entry.encoding, Pem.BEGIN_CERTIFICATE, Pem.END_CERTIFICATE); break;
             }
@@ -43,8 +43,13 @@ class PemWriter implements Closeable, Flushable {
         }
     }
 
-    private void writeEncodedPemEntry(String encodedEntry) {
+    private void writeEncodedPemEntry(String alias, String encodedEntry) {
         try {
+            if (writeAliasLine && alias != null) {
+                writer.write("Alias: ");
+                writer.write(alias);
+                writer.write("\n");
+            }
             writer.write(encodedEntry);
             writer.write("\n");
             writer.flush();
@@ -54,22 +59,14 @@ class PemWriter implements Closeable, Flushable {
     }
 
     private void writePemEntry(String alias, byte[] encoding, String beginLine, String endLine) {
-        try {
-            if (writeAliasLine && alias != null) {
-                writer.write("Alias: ");
-                writer.write(alias);
-                writer.write("\n");
-            }
-            writer.write(beginLine);
-            writer.write("\n");
-            writer.write(Base64.getMimeEncoder(64, new byte[] { 0x0a}).encodeToString(encoding));
-            writer.write("\n");
-            writer.write(endLine);
-            writer.write("\n");
-            writer.flush();
-        } catch (IOException e) {
-            throw new PemKeystoreException("failed writing PEM entry", e);
-        }
+        StringBuilder buffer = new StringBuilder(); 
+        buffer.append(beginLine);
+        buffer.append("\n");
+        buffer.append(Base64.getMimeEncoder(64, new byte[] { 0x0a}).encodeToString(encoding));
+        buffer.append("\n");
+        buffer.append(endLine);
+
+        writeEncodedPemEntry(alias, buffer.toString());
     }
 
     @Override
