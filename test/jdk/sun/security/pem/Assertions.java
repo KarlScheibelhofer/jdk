@@ -114,11 +114,18 @@ public class Assertions {
         try {
             assertArrayEquals(Files.readAllBytes(expectedPath), Files.readAllBytes(realPath));
         } catch (Throwable t) {
+            Path savedExpectedPath = Path.of("/home/karl/tmp").resolve(expectedPath.toFile().getName());
+            
+            Path savedRealPath = Path.of("/home/karl/tmp").resolve(realPath.toFile().getName());
+            
             System.out.println("assertFilesEqual Failed!");
-            System.out.println("Expected:");
+            System.out.println("Expected: (" + savedExpectedPath + ")");
             System.out.println(new String(Files.readAllBytes(expectedPath)));
-            System.out.println("Actual:");
+            System.out.println("Actual: (" + savedRealPath + ")");
             System.out.println(new String(Files.readAllBytes(realPath)));
+
+            Files.copy(expectedPath, savedExpectedPath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(realPath, savedRealPath, StandardCopyOption.REPLACE_EXISTING);
             throw t;
         }
     }
