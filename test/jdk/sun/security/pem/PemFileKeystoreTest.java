@@ -275,7 +275,7 @@ public class PemFileKeystoreTest {
             ks.store(fos, password);
         }
 
-        Assertions.assertFilesEqual(originalKeystore, savedKeystore);
+        Assertions.assertFilesEqualNormalizeLineBreaks(originalKeystore, savedKeystore);
         savedKeystore.delete();
     }
 
@@ -310,7 +310,7 @@ public class PemFileKeystoreTest {
         }
 
         File expectedKeystore = PemKeystoreTestUtils.getResourceFile("www.doesnotexist.org-RSA-keystore-alias.pem");
-        Assertions.assertFilesEqual(expectedKeystore, keystoreFile);
+        Assertions.assertFilesEqualNormalizeLineBreaks(expectedKeystore, keystoreFile);
         keystoreFile.delete();
     }
 
@@ -377,7 +377,7 @@ public class PemFileKeystoreTest {
         }
 
         File expectedKeystore = PemKeystoreTestUtils.getResourceFile("ca-truststore.pem");
-        Assertions.assertFilesEqual(expectedKeystore, keystoreFile);
+        Assertions.assertFilesEqualNormalizeLineBreaks(expectedKeystore, keystoreFile);
 
         keystoreFile.delete();
     }
@@ -477,7 +477,7 @@ public class PemFileKeystoreTest {
         }
 
         File expectedTruststoreFile = PemKeystoreTestUtils.getResourceFile("truststore-alias.pem");
-        Assertions.assertFilesEqual(expectedTruststoreFile, truststoreFile);
+        Assertions.assertFilesEqualNormalizeLineBreaks(expectedTruststoreFile, truststoreFile);
 
         truststoreFile.delete();
     }
@@ -514,7 +514,7 @@ public class PemFileKeystoreTest {
         }
 
         File expectedKeystore = PemKeystoreTestUtils.getResourceFile("www.doesnotexist.org-RSA-enc-keystore.pem");
-        Assertions.assertFilesEqual(expectedKeystore, keystoreFile);
+        Assertions.assertFilesEqualNormalizeLineBreaks(expectedKeystore, keystoreFile);
 
         keystoreFile.delete();
     }

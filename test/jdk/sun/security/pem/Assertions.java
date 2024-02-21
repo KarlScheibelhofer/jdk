@@ -1,7 +1,12 @@
 import java.io.File;
 import java.lang.reflect.Executable;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -90,8 +95,35 @@ public class Assertions {
         }
     }
 
+    static void assertFilesEqualNormalizeLineBreaks(File expectedFile, File realFile) throws Exception {
+        assertFilesEqualNormalizeLineBreaks(expectedFile.toPath(), realFile.toPath());
+    }
+
     static void assertFilesEqual(File expectedFile, File realFile) throws Exception {
         assertFilesEqual(expectedFile.toPath(), realFile.toPath());
+    }
+    
+    static void assertFilesEqualNormalizeLineBreaks(Path expectedPath, Path realPath) throws Exception {
+        System.out.println("Comparing " + expectedPath + " and " + realPath + " normalizing line breaks");
+        try {
+            String expectedString = Files.readString(expectedPath, StandardCharsets.UTF_8).replaceAll("\r\n", "\n");
+            String realString = Files.readString(realPath, StandardCharsets.UTF_8).replaceAll("\r\n", "\n");
+            assertEquals(expectedString, realString);
+        } catch (Throwable t) {
+            Path savedExpectedPath = Path.of("/home/karl/tmp").resolve(expectedPath.toFile().getName());
+            
+            Path savedRealPath = Path.of("/home/karl/tmp").resolve(realPath.toFile().getName());
+            
+            System.out.println("assertFilesEqual Failed!");
+            System.out.println("Expected: (" + savedExpectedPath + ")");
+            System.out.println(new String(Files.readAllBytes(expectedPath)));
+            System.out.println("Actual: (" + savedRealPath + ")");
+            System.out.println(new String(Files.readAllBytes(realPath)));
+
+            Files.copy(expectedPath, savedExpectedPath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(realPath, savedRealPath, StandardCopyOption.REPLACE_EXISTING);
+            throw t;
+        }
     }
     
     static void assertFilesEqual(Path expectedPath, Path realPath) throws Exception {
@@ -99,11 +131,18 @@ public class Assertions {
         try {
             assertArrayEquals(Files.readAllBytes(expectedPath), Files.readAllBytes(realPath));
         } catch (Throwable t) {
+            Path savedExpectedPath = Path.of("/home/karl/tmp").resolve(expectedPath.toFile().getName());
+            
+            Path savedRealPath = Path.of("/home/karl/tmp").resolve(realPath.toFile().getName());
+            
             System.out.println("assertFilesEqual Failed!");
-            System.out.println("Expected:");
+            System.out.println("Expected: (" + savedExpectedPath + ")");
             System.out.println(new String(Files.readAllBytes(expectedPath)));
-            System.out.println("Actual:");
+            System.out.println("Actual: (" + savedRealPath + ")");
             System.out.println(new String(Files.readAllBytes(realPath)));
+
+            Files.copy(expectedPath, savedExpectedPath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(realPath, savedRealPath, StandardCopyOption.REPLACE_EXISTING);
             throw t;
         }
     }
