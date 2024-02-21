@@ -135,10 +135,10 @@ public class PemDirectoryKeystoreTest {
         Assertions.assertTrue(Files.exists(caCertsDirPath.resolve("test-intermediate-ca-ec.crt")));
 
         Path resourcesDir = PemKeystoreTestUtils.getResourceFile(".").toPath();
-        Assertions.assertFilesEqual(resourcesDir.resolve("Test-Root-CA-RSA.crt"), caCertsDirPath.resolve("test-root-ca-rsa.crt"));
-        Assertions.assertFilesEqual(resourcesDir.resolve("Test-Intermediate-CA-RSA.crt"), caCertsDirPath.resolve("test-intermediate-ca-rsa.crt"));
-        Assertions.assertFilesEqual(resourcesDir.resolve("Test-Root-CA-EC.crt"), caCertsDirPath.resolve("test-root-ca-ec.crt"));
-        Assertions.assertFilesEqual(resourcesDir.resolve("Test-Intermediate-CA-EC.crt"), caCertsDirPath.resolve("test-intermediate-ca-ec.crt"));
+        Assertions.assertFilesEqualNormalizeLineBreaks(resourcesDir.resolve("Test-Root-CA-RSA.crt"), caCertsDirPath.resolve("test-root-ca-rsa.crt"));
+        Assertions.assertFilesEqualNormalizeLineBreaks(resourcesDir.resolve("Test-Intermediate-CA-RSA.crt"), caCertsDirPath.resolve("test-intermediate-ca-rsa.crt"));
+        Assertions.assertFilesEqualNormalizeLineBreaks(resourcesDir.resolve("Test-Root-CA-EC.crt"), caCertsDirPath.resolve("test-root-ca-ec.crt"));
+        Assertions.assertFilesEqualNormalizeLineBreaks(resourcesDir.resolve("Test-Intermediate-CA-EC.crt"), caCertsDirPath.resolve("test-intermediate-ca-ec.crt"));
     }
 
     private static  void deleteDirectory(Path toBeDeleted) throws IOException {
@@ -181,16 +181,16 @@ public class PemDirectoryKeystoreTest {
         Assertions.assertTrue(Files.exists(pemKeystoreDirFile.resolve("www.doesnotexist.org-RSA.crt")));
         Assertions.assertTrue(Files.exists(pemKeystoreDirFile.resolve("www.doesnotexist.org-RSA.pem")));
 
-        Assertions.assertFilesEqual(keyFile.toPath(), pemKeystoreDirFile.resolve("www.doesnotexist.org-RSA.pem"));
-        Assertions.assertArrayEquals(concat(certFile, caCertFile, rootCertFile), Files.readAllBytes(pemKeystoreDirFile.resolve("www.doesnotexist.org-RSA.crt")));
+        Assertions.assertFilesEqualNormalizeLineBreaks(keyFile.toPath(), pemKeystoreDirFile.resolve("www.doesnotexist.org-RSA.pem"));
+        Assertions.assertEquals(concat(certFile, caCertFile, rootCertFile), Files.readString(pemKeystoreDirFile.resolve("www.doesnotexist.org-RSA.crt"), StandardCharsets.UTF_8).replaceAll("\r\n", "\n"));
     }
 
-    private static byte[] concat(File... fileArray) throws IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream(2048);
+    private static String concat(File... fileArray) throws IOException {
+        StringBuilder buffer = new StringBuilder(2048);
         for (File f : fileArray) {
-            buffer.write(Files.readAllBytes(f.toPath()));
+            buffer.append(Files.readString(f.toPath(), StandardCharsets.UTF_8));
         }
-        return buffer.toByteArray();
+        return buffer.toString();
     }
 
     private static void loadTruststoreDirectoryFromFile() throws Exception {
