@@ -104,47 +104,13 @@ public class Assertions {
     }
     
     static void assertFilesEqualNormalizeLineBreaks(Path expectedPath, Path realPath) throws Exception {
-        System.out.println("Comparing " + expectedPath + " and " + realPath + " normalizing line breaks");
-        try {
-            String expectedString = Files.readString(expectedPath, StandardCharsets.UTF_8).replaceAll("\r\n", "\n");
-            String realString = Files.readString(realPath, StandardCharsets.UTF_8).replaceAll("\r\n", "\n");
-            assertEquals(expectedString, realString);
-        } catch (Throwable t) {
-            Path savedExpectedPath = Path.of("/home/karl/tmp").resolve(expectedPath.toFile().getName());
-            
-            Path savedRealPath = Path.of("/home/karl/tmp").resolve(realPath.toFile().getName());
-            
-            System.out.println("assertFilesEqual Failed!");
-            System.out.println("Expected: (" + savedExpectedPath + ")");
-            System.out.println(new String(Files.readAllBytes(expectedPath)));
-            System.out.println("Actual: (" + savedRealPath + ")");
-            System.out.println(new String(Files.readAllBytes(realPath)));
-
-            Files.copy(expectedPath, savedExpectedPath, StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(realPath, savedRealPath, StandardCopyOption.REPLACE_EXISTING);
-            throw t;
-        }
+        String expectedString = Files.readString(expectedPath, StandardCharsets.UTF_8).replaceAll("\r\n", "\n");
+        String realString = Files.readString(realPath, StandardCharsets.UTF_8).replaceAll("\r\n", "\n");
+        assertEquals(expectedString, realString);
     }
     
     static void assertFilesEqual(Path expectedPath, Path realPath) throws Exception {
-        System.out.println("Comparing " + expectedPath + " and " + realPath);
-        try {
-            assertArrayEquals(Files.readAllBytes(expectedPath), Files.readAllBytes(realPath));
-        } catch (Throwable t) {
-            Path savedExpectedPath = Path.of("/home/karl/tmp").resolve(expectedPath.toFile().getName());
-            
-            Path savedRealPath = Path.of("/home/karl/tmp").resolve(realPath.toFile().getName());
-            
-            System.out.println("assertFilesEqual Failed!");
-            System.out.println("Expected: (" + savedExpectedPath + ")");
-            System.out.println(new String(Files.readAllBytes(expectedPath)));
-            System.out.println("Actual: (" + savedRealPath + ")");
-            System.out.println(new String(Files.readAllBytes(realPath)));
-
-            Files.copy(expectedPath, savedExpectedPath, StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(realPath, savedRealPath, StandardCopyOption.REPLACE_EXISTING);
-            throw t;
-        }
+        assertArrayEquals(Files.readAllBytes(expectedPath), Files.readAllBytes(realPath));
     }
 
     static void assertArrayEquals(byte[] expectedValue, byte[] value) throws Exception {
