@@ -153,31 +153,22 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
                 yield pemEncoded(Pem.Type.ENCRYPTED_PRIVATE, e.getEncoded());
             }
             case Certificate c -> {
-                ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
-                os.writeBytes(Pem.Type.CERTIFICATE.getHeader());
-                os.writeBytes(Pem.LINESEPARATOR);
+                byte[] encodedObject;
                 try {
-                    os.writeBytes(Base64.getMimeEncoder().encode(c.getEncoded()));
+                    encodedObject = c.getEncoded();
                 } catch (CertificateException e) {
                     throw new IOException(e);
                 }
-                os.writeBytes(Pem.LINESEPARATOR);
-                os.writeBytes(Pem.Type.CERTIFICATE.getFooter());
-                yield os.toByteArray();
+                yield pemEncoded(Pem.Type.CERTIFICATE, encodedObject);
             }
-            case CRL crl -> {
-                X509CRL xcrl = (X509CRL)crl;
-                ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
-                os.write(Pem.Type.CRL.getHeader());
-                os.writeBytes(Pem.LINESEPARATOR);
+            case X509CRL crl -> {
+                byte[] encodedObject;
                 try {
-                    os.writeBytes(Base64.getMimeEncoder().encode(xcrl.getEncoded()));
+                    encodedObject = crl.getEncoded();
                 } catch (CRLException e) {
                     throw new IOException(e);
                 }
-                os.writeBytes(Pem.LINESEPARATOR);
-                os.write(Pem.Type.CRL.getFooter());
-                yield os.toByteArray();
+                yield pemEncoded(Pem.Type.CRL, encodedObject);
             }
             default -> throw new IOException("PEM does not support " +
                 so.getClass().getCanonicalName());
