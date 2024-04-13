@@ -27,10 +27,16 @@ package java.security;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.CRL;
 import java.security.cert.CRLException;
+import java.security.cert.CRL;
+import java.security.cert.CRLException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.X509CRL;
 import java.security.cert.CertificateException;
 import java.security.cert.X509CRL;
 import java.security.spec.AlgorithmParameterSpec;
@@ -39,6 +45,17 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Objects;
+
+import javax.crypto.Cipher;
+import javax.crypto.EncryptedPrivateKeyInfo;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
+import sun.security.pkcs.PKCS8Key;
+import sun.security.util.DerOutputStream;
+import sun.security.util.DerValue;
+import sun.security.util.Pem;
+import sun.security.x509.AlgorithmId;
 
 import javax.crypto.Cipher;
 import javax.crypto.EncryptedPrivateKeyInfo;
@@ -115,11 +132,17 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
      * @return the string
      */
     private byte[] pemEncoded(Pem.Type keyType, byte[] encoded) {
+    private byte[] pemEncoded(Pem.Type keyType, byte[] encoded) {
         ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
         os.writeBytes(keyType.getHeader());
         os.writeBytes(Pem.LINESEPARATOR);
         os.writeBytes(Base64.getMimeEncoder(64, Pem.LINESEPARATOR).encode(encoded));        
+        os.writeBytes(keyType.getHeader());
         os.writeBytes(Pem.LINESEPARATOR);
+        os.writeBytes(Base64.getMimeEncoder(64, Pem.LINESEPARATOR).encode(encoded));        
+        os.writeBytes(Pem.LINESEPARATOR);
+        os.writeBytes(keyType.getFooter());
+
         os.writeBytes(keyType.getFooter());
 
         return os.toByteArray();
@@ -137,6 +160,7 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
      * @see #withEncryption(char[])
      */
     public String encodeToString(SecurityObject so) throws IOException {
+            return new String(encode(so), StandardCharsets.US_ASCII);
             return new String(encode(so), StandardCharsets.US_ASCII);
     }
 
@@ -174,23 +198,31 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
                     throw new IOException("encrypt was incorrectly used");
                 }
                 yield pemEncoded(Pem.Type.ENCRYPTED_PRIVATE, e.getEncoded());
+                yield pemEncoded(Pem.Type.ENCRYPTED_PRIVATE, e.getEncoded());
             }
             case Certificate c -> {
                 byte[] encodedObject;
+                byte[] encodedObject;
                 try {
+                    encodedObject = c.getEncoded();
                     encodedObject = c.getEncoded();
                 } catch (CertificateException e) {
                     throw new IOException(e);
                 }
                 yield pemEncoded(Pem.Type.CERTIFICATE, encodedObject);
+                yield pemEncoded(Pem.Type.CERTIFICATE, encodedObject);
             }
+            case X509CRL crl -> {
+                byte[] encodedObject;
             case X509CRL crl -> {
                 byte[] encodedObject;
                 try {
                     encodedObject = crl.getEncoded();
+                    encodedObject = crl.getEncoded();
                 } catch (CRLException e) {
                     throw new IOException(e);
                 }
+                yield pemEncoded(Pem.Type.CRL, encodedObject);
                 yield pemEncoded(Pem.Type.CRL, encodedObject);
             }
             default -> throw new IOException("PEM does not support " +
@@ -263,17 +295,21 @@ final public class PEMEncoder implements Encoder<SecurityObject> {
                 throw new IOException(e);
             }
             return pemEncoded(Pem.Type.ENCRYPTED_PRIVATE, encoded);
+            return pemEncoded(Pem.Type.ENCRYPTED_PRIVATE, encoded);
         }
 
         // X509 only
         if (publicBytes != null && privateBytes == null) {
             return pemEncoded(Pem.Type.PUBLIC, publicBytes);
+            return pemEncoded(Pem.Type.PUBLIC, publicBytes);
         }
         // PKCS8 only
         if (publicBytes == null && privateBytes != null) {
             return pemEncoded(Pem.Type.PRIVATE, privateBytes);
+            return pemEncoded(Pem.Type.PRIVATE, privateBytes);
         }
         // OAS
+        return pemEncoded(Pem.Type.PRIVATE, PKCS8Key.getEncoded(publicBytes,
         return pemEncoded(Pem.Type.PRIVATE, PKCS8Key.getEncoded(publicBytes,
             privateBytes));
     }

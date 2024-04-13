@@ -27,13 +27,19 @@ package sun.security.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Map;
 import java.util.Objects;
+
+import sun.security.x509.AlgorithmId;
 
 import sun.security.x509.AlgorithmId;
 
@@ -97,10 +103,13 @@ public class Pem {
     }
 
     private Type type;
+    private Type type;
     private byte[] data;
 
     private Pem(byte[] data, Type type) {
+    private Pem(byte[] data, Type type) {
         this.data = data;
+        this.type = type;
         this.type = type;
     }
     /**
@@ -280,12 +289,18 @@ public class Pem {
                 header + " " + footer);
         }
         Type pemType = Type.getByTag(headerType);
+        Type pemType = Type.getByTag(headerType);
 
+        return new Pem(data.getBytes(StandardCharsets.UTF_8), pemType);
         return new Pem(data.getBytes(StandardCharsets.UTF_8), pemType);
     }
 
     public byte[] getData() {
         return data;
+    }
+
+    public Type getType() {
+        return type;
     }
 
     public Type getType() {
