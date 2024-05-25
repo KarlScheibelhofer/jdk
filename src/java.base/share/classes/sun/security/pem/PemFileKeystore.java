@@ -1,0 +1,67 @@
+package sun.security.pem;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.util.LinkedList;
+import java.util.List;
+
+
+public class PemFileKeystore extends PemKeystore {
+
+    @Override
+    public void engineStore(OutputStream stream, char[] password)
+            throws IOException, NoSuchAlgorithmException, CertificateException {
+        try (final PemWriter pemOut = new PemWriter(stream, true)) {
+            privateKeys.values().stream().forEach(pke -> pemOut.writeEntry(pke));
+            certificateChains.values().stream().forEach(cce -> cce.stream().forEach(c -> pemOut.writeEntry(c)));
+            certificates.values().stream().forEach(pke -> pemOut.writeEntry(pke));
+        }
+    }
+
+    @Override
+    public void engineLoad(InputStream stream, char[] password)
+            throws IOException, NoSuchAlgorithmException, CertificateException {
+        if (stream == null) {
+            clearKeystore();
+            return;
+        }
+        try (PemReader pemReader = new PemReader(stream, null)) {
+            List<Pem.CertificateEntry> certList = new LinkedList<>();
+
+            for (Pem.Entry entry : pemReader.readEntries()) {
+                switch (entry.type) {
+                    case certificate: {
+                        certList.add((Pem.CertificateEntry) entry);
+                        break;
+                    }
+                    case privateKey: {
+                        privateKeys.put(makeUniqueAlias(privateKeys.keySet(), entry), (Pem.PrivateKeyEntry) entry);
+                        break;
+                    }
+                    case encryptedPrivateKey: {
+                        privateKeys.put(makeUniqueAlias(privateKeys.keySet(), entry), (Pem.PrivateKeyEntry) entry);
+                        Pem.EncryptedPrivateKeyEntry epk = (Pem.EncryptedPrivateKeyEntry) entry;
+                        try {
+                            epk.decryptPrivateKey(password);
+                        } catch (PemKeystoreException e) {
+                            // ignore at this point, the app can try later with a different password calling
+                            // #engineGetKey
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+            buildCertChains(certList);
+
+            certList.stream().forEach(c -> certificates
+                    .put(makeUniqueAlias(certificates.keySet(), c), c));
+        } catch (PemKeystoreException e) {
+            throw new IOException("error loading key", e);
+        }
+    }
+}
