@@ -112,21 +112,24 @@ final public class PEMEncoder {
                 os.writeBytes(Pem.LINESEPARATOR);
                 os.writeBytes(convertToPEM(encoded));
                 os.writeBytes(Pem.PUBFOOTER);
-                os.writeBytes(Pem.LINESEPARATOR);
+                // removed for consistency with certificates and CRLs
+                // os.writeBytes(Pem.LINESEPARATOR);
             }
             case PRIVATE -> {
                 os.writeBytes(Pem.PKCS8HEADER);
                 os.writeBytes(Pem.LINESEPARATOR);
                 os.writeBytes(convertToPEM(encoded));
                 os.writeBytes(Pem.PKCS8FOOTER);
-                os.writeBytes(Pem.LINESEPARATOR);
+                // removed for consistency with certificates and CRLs
+                // os.writeBytes(Pem.LINESEPARATOR);
             }
             case ENCRYPTED_PRIVATE -> {
                 os.writeBytes(Pem.PKCS8ENCHEADER);
                 os.writeBytes(Pem.LINESEPARATOR);
                 os.writeBytes(convertToPEM(encoded));
                 os.writeBytes(Pem.PKCS8ENCFOOTER);
-                os.writeBytes(Pem.LINESEPARATOR);
+                // removed for consistency with certificates and CRLs
+                // os.writeBytes(Pem.LINESEPARATOR);
             }
             default -> {
                 return new byte[0];
@@ -229,11 +232,13 @@ final public class PEMEncoder {
             case Certificate c -> {
                 ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
                 os.writeBytes(Pem.CERTHEADER);
+                os.writeBytes(Pem.LINESEPARATOR);
                 try {
-                    os.writeBytes(Base64.getMimeEncoder().encode(c.getEncoded()));
+                    os.writeBytes(Base64.getMimeEncoder(64, Pem.LINESEPARATOR).encode(c.getEncoded()));
                 } catch (CertificateEncodingException e) {
                     throw new IllegalArgumentException(e);
                 }
+                os.writeBytes(Pem.LINESEPARATOR);
                 os.writeBytes(Pem.CERTFOOTER);
                 yield os.toByteArray();
             }
@@ -241,11 +246,13 @@ final public class PEMEncoder {
                 X509CRL xcrl = (X509CRL)crl;
                 ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
                 os.writeBytes(Pem.CRLHEADER);
+                os.writeBytes(Pem.LINESEPARATOR);
                 try {
-                    os.writeBytes(Base64.getMimeEncoder().encode(xcrl.getEncoded()));
+                    os.writeBytes(Base64.getMimeEncoder(64, Pem.LINESEPARATOR).encode(xcrl.getEncoded()));
                 } catch (CRLException e) {
                     throw new IllegalArgumentException(e);
                 }
+                os.writeBytes(Pem.LINESEPARATOR);
                 os.writeBytes(Pem.CRLFOOTER);
                 yield os.toByteArray();
             }
